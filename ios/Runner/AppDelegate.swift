@@ -2,31 +2,33 @@ import Flutter
 import UIKit
 import UserNotifications
 import AVFoundation
-import PushKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
 
   // MARK: - Properties
 
+  /// 静音音频播放器，设为实例属性防止 ARC 提前释放
   private var audioPlayer: AVAudioPlayer?
+  /// 保活开关
   private var isKeepAliveEnabled = false
+  /// MethodChannel 引用
   private var methodChannel: FlutterMethodChannel?
 
-  // MARK: - Native Log
+  // MARK: - Logging
 
   private func nativeLog(_ message: String) {
-    NSLog(message)
+    NSLog("[KeepAlive] \(message)")
     methodChannel?.invokeMethod("log", arguments: message)
   }
 
-  // MARK: - MethodChannel Binding（由 SceneDelegate 在 Scene 启动后调用）
+  // MARK: - MethodChannel Binding（由 SceneDelegate 在 Scene 激活后调用）
 
   func bindMethodChannel(_ channel: FlutterMethodChannel) {
     methodChannel = channel
     channel.setMethodCallHandler { [weak self] (call, result) in
-      guard let self = self else { return }
-      self.nativeLog("[KeepAlive] 收到 Flutter 端调用: \(call.method)")
+      guard let self else { return }
+      self.nativeLog("收到 Flutter 调用: \(call.method)")
       switch call.method {
       case "enableKeepAlive":
         self.enableKeepAlive()
@@ -42,9 +44,7 @@ import PushKit
     }
     // 配置音频会话
     configureAudioSession()
-    // 注册 PushKit VoIP 推送（用于被杀死后唤醒重连）
-    registerVoIPPush()
-    nativeLog("[KeepAlive] MethodChannel 绑定完成 ✅")
+    nativeLog("MethodChannel 绑定完成 ✅")
   }
 
   // MARK: - Application Lifecycle
@@ -60,21 +60,16 @@ import PushKit
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  // MARK: - Scene 生命周期入口（由 SceneDelegate 转发）
-  // iOS 13+ Scene 架构下 AppDelegate 的 background/foreground 不再被系统回调，
-  // 由 SceneDelegate 的 sceneDidEnterBackground / sceneWillEnterForeground 转发。
+  // MARK: - Scene 生命周期转发（由 SceneDelegate 调用）
 
   func handleEnterBackground() {
-    nativeLog("[KeepAlive] App 进入后台, 保活已启用: \(isKeepAliveEnabled)")
-    guard isKeepAliveEnabled else {
-      nativeLog("[KeepAlive] 保活未启用，跳过")
-      return
-    }
+    nativeLog("App 进入后台，保活已启用: \(isKeepAliveEnabled)")
+    guard isKeepAliveEnabled else { return }
     startSilentAudio()
   }
 
   func handleEnterForeground() {
-    nativeLog("[KeepAlive] App 回到前台")
+    nativeLog("App 回到前台")
     stopSilentAudio()
   }
 
@@ -83,13 +78,13 @@ import PushKit
   private func enableKeepAlive() {
     isKeepAliveEnabled = true
     configureAudioSession()
-    nativeLog("[KeepAlive] ✅ 保活已启用")
+    nativeLog("✅ 保活已启用")
   }
 
   private func disableKeepAlive() {
     isKeepAliveEnabled = false
     stopSilentAudio()
-    nativeLog("[KeepAlive] ❌ 保活已禁用")
+    nativeLog("❌ 保活已禁用")
   }
 
   // MARK: - Audio Session
@@ -99,22 +94,55 @@ import PushKit
       let session = AVAudioSession.sharedInstance()
       try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
       try session.setActive(true)
-      nativeLog("[KeepAlive] 音频会话配置成功（playback + mixWithOthers）")
+      // 监听音频中断（电话、其他 App 抢占等），中断结束后自动恢复播放
+      NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
+      NotificationCenter.default.addObserver(
+        self,
+        selector: #selector(handleAudioInterruption(_:)),
+        name: AVAudioSession.interruptionNotification,
+        object: session
+      )
+      nativeLog("音频会话配置成功（playback + mixWithOthers）")
     } catch {
-      nativeLog("[KeepAlive] 音频会话配置失败: \(error)")
+      nativeLog("音频会话配置失败: \(error)")
+    }
+  }
+
+  /// 处理音频中断：电话结束、其他 App 释放音频后自动恢复静音播放
+  @objc private func handleAudioInterruption(_ notification: Notification) {
+    guard let userInfo = notification.userInfo,
+          let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+          let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+
+    if type == .ended {
+      // 中断结束，尝试重新激活音频会话并恢复播放
+      let optionValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+      let options = AVAudioSession.InterruptionOptions(rawValue: optionValue)
+      if options.contains(.shouldResume) || optionValue == 0 {
+        nativeLog("音频中断结束，恢复静音播放")
+        do {
+          try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+          nativeLog("重新激活音频会话失败: \(error)")
+        }
+        if isKeepAliveEnabled {
+          audioPlayer?.play()
+        }
+      }
+    } else {
+      nativeLog("音频中断开始（电话/其他 App）")
     }
   }
 
   // MARK: - Silent Audio
-  // 使用 Bundle 内预置的 silence.aac 文件，比内存动态 WAV 更稳定。
 
   private func startSilentAudio() {
     guard audioPlayer == nil else {
-      nativeLog("[KeepAlive] 静音音频已在播放中，跳过重复启动")
+      nativeLog("静音音频已在播放中，跳过重复启动")
       return
     }
     guard let url = Bundle.main.url(forResource: "silence", withExtension: "aac") else {
-      nativeLog("[KeepAlive] ❌ 未找到 silence.aac，请确保文件已添加到 Xcode Bundle Resources")
+      nativeLog("❌ 未找到 silence.aac，请确保文件已加入 Xcode Bundle Resources")
       return
     }
     do {
@@ -122,27 +150,16 @@ import PushKit
       audioPlayer?.numberOfLoops = -1  // 无限循环
       audioPlayer?.volume = 0.0
       let success = audioPlayer?.play() ?? false
-      nativeLog("[KeepAlive] 静音音频启动: \(success ? "✅ 成功" : "❌ 失败")")
+      nativeLog("静音音频启动: \(success ? "✅ 成功" : "❌ 失败")")
     } catch {
-      nativeLog("[KeepAlive] 静音音频异常: \(error)")
+      nativeLog("静音音频异常: \(error)")
     }
   }
 
   private func stopSilentAudio() {
     audioPlayer?.stop()
     audioPlayer = nil
-    nativeLog("[KeepAlive] 静音音频已停止")
-  }
-
-  // MARK: - PushKit VoIP
-  // VoIP 推送可以在 App 被系统完全杀死后将其唤醒，是 iOS 后台保活的最强手段。
-  // 收到 VoIP 推送后，App 有约 30 秒时间在后台执行代码（如重连 MQTT）。
-
-  private func registerVoIPPush() {
-    let registry = PKPushRegistry(queue: .main)
-    registry.delegate = self
-    registry.desiredPushTypes = [.voIP]
-    nativeLog("[KeepAlive] PushKit VoIP 已注册，等待系统下发 VoIP 推送 Token")
+    nativeLog("静音音频已停止")
   }
 
   // MARK: - UNUserNotificationCenterDelegate
@@ -154,36 +171,5 @@ import PushKit
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
     completionHandler([.banner, .list, .sound, .badge])
-  }
-}
-
-// MARK: - PKPushRegistryDelegate
-
-extension AppDelegate: PKPushRegistryDelegate {
-
-  /// 系统颁发 VoIP Token（每次 App 安装或 Token 轮换时回调）
-  func pushRegistry(
-    _ registry: PKPushRegistry,
-    didUpdate pushCredentials: PKPushCredentials,
-    for type: PKPushType
-  ) {
-    let tokenData = pushCredentials.token
-    let token = tokenData.map { String(format: "%02x", $0) }.joined()
-    nativeLog("[KeepAlive] VoIP Push Token: \(token)")
-    // 可将 token 上报给服务端，服务端通过 APNs VoIP 通道推送唤醒消息
-    methodChannel?.invokeMethod("voipToken", arguments: token)
-  }
-
-  /// 收到 VoIP 推送（App 被杀死也会唤醒）
-  func pushRegistry(
-    _ registry: PKPushRegistry,
-    didReceiveIncomingPushWith payload: PKPushPayload,
-    for type: PKPushType,
-    completion: @escaping () -> Void
-  ) {
-    nativeLog("[KeepAlive] 收到 VoIP 推送，唤醒 App 重连 MQTT")
-    // 通知 Flutter 层重新连接 MQTT
-    methodChannel?.invokeMethod("voipWakeup", arguments: payload.dictionaryPayload)
-    completion()
   }
 }

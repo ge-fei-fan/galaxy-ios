@@ -288,29 +288,12 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> initialize() async {
     WidgetsBinding.instance.addObserver(this);
 
-    // 监听原生回调
+    // 监听原生日志回传
     _channel.setMethodCallHandler((call) async {
-      switch (call.method) {
-        case 'log':
-          // 原生日志回传到 Flutter 调试面板
-          final String message = call.arguments as String;
-          _notificationService.log('Native: $message');
-          notifyListeners();
-        case 'voipToken':
-          // VoIP 推送 Token（可上报服务器）
-          final String token = call.arguments as String;
-          _notificationService.log('VoIP Token: $token');
-          notifyListeners();
-        case 'voipWakeup':
-          // 被 VoIP 推送唤醒，自动重连 MQTT
-          _notificationService.log('VoIP 唤醒，尝试重连 MQTT...');
-          notifyListeners();
-          if (!connected && !_isExplicitDisconnect) {
-            _reconnectDelaySeconds = 2;
-            _scheduleReconnect();
-          }
-        default:
-          break;
+      if (call.method == 'log') {
+        final String message = call.arguments as String;
+        _notificationService.log('Native: $message');
+        notifyListeners();
       }
     });
 
