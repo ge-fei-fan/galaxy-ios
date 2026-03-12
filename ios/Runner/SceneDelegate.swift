@@ -28,4 +28,18 @@ class SceneDelegate: FlutterSceneDelegate {
       NSLog("[KeepAlive] SceneDelegate: MethodChannel 通信绑定成功 ✅")
     }
   }
+
+  // MARK: - Scene 生命周期（iOS 13+ Scene 架构下替代 AppDelegate 的 background/foreground 回调）
+
+  override func sceneDidEnterBackground(_ scene: UIScene) {
+    super.sceneDidEnterBackground(scene)
+    NSLog("[KeepAlive] SceneDelegate: sceneDidEnterBackground 触发，转发给 AppDelegate")
+    (UIApplication.shared.delegate as? AppDelegate)?.handleEnterBackground()
+  }
+
+  override func sceneWillEnterForeground(_ scene: UIScene) {
+    super.sceneWillEnterForeground(scene)
+    NSLog("[KeepAlive] SceneDelegate: sceneWillEnterForeground 触发，转发给 AppDelegate")
+    (UIApplication.shared.delegate as? AppDelegate)?.handleEnterForeground()
+  }
 }

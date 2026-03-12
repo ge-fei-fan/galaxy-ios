@@ -204,6 +204,10 @@ class NotificationService {
     }
   }
 
+  void clearLogs() {
+    debugLogs.clear();
+  }
+
   Future<void> init() async {
     try {
       const iosSettings = DarwinInitializationSettings(
@@ -554,6 +558,12 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
   /// 获取通知服务的调试日志
   List<String> get notificationDebugLogs => _notificationService.debugLogs;
 
+  /// 清除调试日志
+  void clearLogs() {
+    _notificationService.clearLogs();
+    notifyListeners();
+  }
+
   /// 最后一次测试通知的结果
   String lastTestResult = '';
 
@@ -624,61 +634,74 @@ class _ConfigPageState extends State<ConfigPage> {
   }
 
   void _showDebugLogs(BuildContext context) {
-    final logs = widget.controller.notificationDebugLogs;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.3,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        '🔔 通知调试日志',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: logs.isEmpty
-                      ? const Center(child: Text('暂无日志'))
-                      : ListView.builder(
-                          controller: scrollController,
-                          itemCount: logs.length,
-                          padding: const EdgeInsets.all(12),
-                          itemBuilder: (context, index) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Text(
-                                logs[index],
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontFamily: 'monospace',
-                                ),
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final logs = widget.controller.notificationDebugLogs;
+            return DraggableScrollableSheet(
+              initialChildSize: 0.6,
+              minChildSize: 0.3,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              '🔔 通知调试日志',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
-                            );
-                          },
-                        ),
-                ),
-              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_sweep_outlined),
+                            tooltip: '清除日志',
+                            onPressed: () {
+                              widget.controller.clearLogs();
+                              setSheetState(() {});
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: logs.isEmpty
+                          ? const Center(child: Text('暂无日志'))
+                          : ListView.builder(
+                              controller: scrollController,
+                              itemCount: logs.length,
+                              padding: const EdgeInsets.all(12),
+                              itemBuilder: (context, index) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 2),
+                                  child: Text(
+                                    logs[index],
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );

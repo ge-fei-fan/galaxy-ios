@@ -54,37 +54,34 @@ import AVFoundation
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
   
-  // MARK: - App Lifecycle
-  
-  override func applicationDidEnterBackground(_ application: UIApplication) {
-    super.applicationDidEnterBackground(application)
-    nativeLog("[KeepAlive] App 进入后台, 启用保活: \(isKeepAliveEnabled)")
+  // MARK: - 公开生命周期入口（由 SceneDelegate 转发调用）
+  // 在 iOS 13+ Scene 架构下，AppDelegate 的 applicationDidEnterBackground /
+  // applicationWillEnterForeground 不再被系统调用，改由 SceneDelegate 的
+  // sceneDidEnterBackground / sceneWillEnterForeground 转发过来。
+
+  func handleEnterBackground() {
+    nativeLog("[KeepAlive] App 进入后台, 保活已启用: \(isKeepAliveEnabled)")
     
     guard isKeepAliveEnabled else {
       nativeLog("[KeepAlive] 保活未启用，不执行后台保活")
       return
     }
     
-    beginBackgroundTask()
+    // 启动静音音频（核心保活手段）
     startSilentAudio()
+    // 申请一段短暂的后台任务作为缓冲（让音频有时间启动）
+    beginBackgroundTask()
     
     var tickCount = 0
     keepAliveTimer?.invalidate()
-    keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-      tickCount += 2
+    keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+      tickCount += 5
       let timeRemaining = UIApplication.shared.backgroundTimeRemaining
-      self?.nativeLog("[KeepAlive] 存活 tick \(tickCount)s, 后台可用时间: \(timeRemaining)s")
-      
-      if tickCount % 20 == 0 {
-        self?.nativeLog("[KeepAlive] 准备重置后台任务")
-        self?.endBackgroundTask()
-        self?.beginBackgroundTask()
-      }
+      self?.nativeLog("[KeepAlive] 后台存活 \(tickCount)s, backgroundTimeRemaining: \(Int(timeRemaining))s")
     }
   }
 
-  override func applicationWillEnterForeground(_ application: UIApplication) {
-    super.applicationWillEnterForeground(application)
+  func handleEnterForeground() {
     nativeLog("[KeepAlive] App 回到前台")
     keepAliveTimer?.invalidate()
     keepAliveTimer = nil
@@ -99,7 +96,7 @@ import AVFoundation
       let session = AVAudioSession.sharedInstance()
       try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
       try session.setActive(true)
-      nativeLog("[KeepAlive] 音频会话配置成功")
+      nativeLog("[KeepAlive] 音频会话配置成功（category=playback, mixWithOthers）")
     } catch {
       nativeLog("[KeepAlive] 音频会话配置失败: \(error)")
     }
@@ -109,6 +106,8 @@ import AVFoundation
   
   private func enableKeepAlive() {
     isKeepAliveEnabled = true
+    // 确保音频会话处于激活状态
+    configureAudioSession()
     nativeLog("=========================================")
     nativeLog("[KeepAlive] ✅ 开启后台保活功能成功")
     nativeLog("=========================================")
@@ -116,6 +115,8 @@ import AVFoundation
   
   private func disableKeepAlive() {
     isKeepAliveEnabled = false
+    keepAliveTimer?.invalidate()
+    keepAliveTimer = nil
     stopSilentAudio()
     endBackgroundTask()
     nativeLog("=========================================")
@@ -124,19 +125,18 @@ import AVFoundation
   }
   
   // MARK: - Background Task
-  
+  // 注意：UIBackgroundTask 最长约 30 秒，仅用于进入后台初期的过渡缓冲。
+  // 真正的长期后台保活依赖 AVAudioSession playback 持续播放静音音频。
+
   private func beginBackgroundTask() {
     guard backgroundTask == .invalid else { return }
     backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "MQTTKeepAlive") { [weak self] in
-      self?.nativeLog("[KeepAlive] 系统即将结束当前后台任务 (id=\(self?.backgroundTask.rawValue ?? 0))")
+      // expiration handler：系统即将结束本次后台任务，只做清理，不再重新申请
+      // （在此回调中重新申请会被系统立即拒绝或过期，属于无效操作）
+      self?.nativeLog("[KeepAlive] 后台任务到期 (id=\(self?.backgroundTask.rawValue ?? 0))，依赖静音音频继续保活")
       self?.endBackgroundTask()
-      
-      DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-        self?.nativeLog("[KeepAlive] 尝试重新开始后台任务...")
-        self?.beginBackgroundTask()
-      }
     }
-    nativeLog("[KeepAlive] 后台任务已开始, id=\(backgroundTask.rawValue), 剩余时间: \(UIApplication.shared.backgroundTimeRemaining)s")
+    nativeLog("[KeepAlive] 后台任务已开始 id=\(backgroundTask.rawValue), 剩余时间: \(Int(UIApplication.shared.backgroundTimeRemaining))s")
   }
   
   private func endBackgroundTask() {
@@ -148,7 +148,10 @@ import AVFoundation
   // MARK: - Silent Audio
   
   private func startSilentAudio() {
-    guard audioPlayer == nil else { return }
+    guard audioPlayer == nil else {
+      nativeLog("[KeepAlive] 静音音频已在播放中，跳过重复启动")
+      return
+    }
     
     let sampleRate: Double = 44100
     let duration: Double = 1.0
@@ -158,10 +161,12 @@ import AVFoundation
     let dataSize = numSamples * 2
     let fileSize = 36 + dataSize
     
+    // RIFF header
     wavData.append(contentsOf: [0x52, 0x49, 0x46, 0x46])
     wavData.append(contentsOf: withUnsafeBytes(of: UInt32(fileSize).littleEndian) { Array($0) })
     wavData.append(contentsOf: [0x57, 0x41, 0x56, 0x45])
     
+    // fmt chunk
     wavData.append(contentsOf: [0x66, 0x6D, 0x74, 0x20])
     wavData.append(contentsOf: withUnsafeBytes(of: UInt32(16).littleEndian) { Array($0) })
     wavData.append(contentsOf: withUnsafeBytes(of: UInt16(1).littleEndian) { Array($0) })
@@ -171,17 +176,17 @@ import AVFoundation
     wavData.append(contentsOf: withUnsafeBytes(of: UInt16(2).littleEndian) { Array($0) })
     wavData.append(contentsOf: withUnsafeBytes(of: UInt16(16).littleEndian) { Array($0) })
     
+    // data chunk
     wavData.append(contentsOf: [0x64, 0x61, 0x74, 0x61])
     wavData.append(contentsOf: withUnsafeBytes(of: UInt32(dataSize).littleEndian) { Array($0) })
-    
     wavData.append(Data(count: dataSize))
     
     do {
       audioPlayer = try AVAudioPlayer(data: wavData)
-      audioPlayer?.numberOfLoops = -1
+      audioPlayer?.numberOfLoops = -1  // 无限循环
       audioPlayer?.volume = 0.0
       let playSuccess = audioPlayer?.play() ?? false
-      nativeLog("[KeepAlive] 静音音频尝试播放, 结果: \(playSuccess)")
+      nativeLog("[KeepAlive] 静音音频启动, 结果: \(playSuccess ? "✅ 成功" : "❌ 失败")")
     } catch {
       nativeLog("[KeepAlive] 静音音频播放异常: \(error)")
     }
