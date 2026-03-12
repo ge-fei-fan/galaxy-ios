@@ -195,11 +195,11 @@ class NotificationService {
   /// 调试日志列表，用于在界面上展示
   final List<String> debugLogs = [];
 
-  void _log(String message) {
+  void log(String message) {
     final time = DateTime.now().toLocal().toString().substring(11, 19);
     debugLogs.add('[$time] $message');
-    // 最多保留 50 条日志
-    if (debugLogs.length > 50) {
+    // 最多保留 100 条日志
+    if (debugLogs.length > 100) {
       debugLogs.removeAt(0);
     }
   }
@@ -215,7 +215,7 @@ class NotificationService {
         iOS: iosSettings,
       );
       final initResult = await _plugin.initialize(initializationSettings);
-      _log('插件初始化结果: $initResult');
+      log('插件初始化结果: $initResult');
 
       final permResult = await _plugin
           .resolvePlatformSpecificImplementation<
@@ -225,16 +225,16 @@ class NotificationService {
             badge: true,
             sound: true,
           );
-      _log('权限请求结果: $permResult');
+      log('权限请求结果: $permResult');
     } catch (e) {
-      _log('初始化异常: $e');
+      log('初始化异常: $e');
     }
   }
 
   Future<String> showMessage(String topic, String payload) async {
     try {
       final id = DateTime.now().millisecondsSinceEpoch.remainder(100000);
-      _log('发送通知 id=$id');
+      log('发送通知 id=$id');
       const details = NotificationDetails(
         iOS: DarwinNotificationDetails(
           presentAlert: true,
@@ -243,10 +243,10 @@ class NotificationService {
         ),
       );
       await _plugin.show(id, 'MQTT: $topic', payload, details);
-      _log('通知发送成功');
+      log('通知发送成功');
       return '✅ 通知发送成功 (id=$id)';
     } catch (e) {
-      _log('通知发送异常: $e');
+      log('通知发送异常: $e');
       return '❌ 通知发送失败: $e';
     }
   }
@@ -283,6 +283,16 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> initialize() async {
     WidgetsBinding.instance.addObserver(this);
+    
+    // 监听原生日志回传
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'log') {
+        final String message = call.arguments as String;
+        _notificationService.log('Native: $message');
+        notifyListeners();
+      }
+    });
+
     final storedConfig = _settingsBox.get('config');
     if (storedConfig is Map) {
       config = MqttConfig.fromMap(storedConfig);

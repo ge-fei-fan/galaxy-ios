@@ -10,6 +10,12 @@ import AVFoundation
   private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
   private var keepAliveTimer: Timer?
   private var isKeepAliveEnabled = false
+  private var methodChannel: FlutterMethodChannel?
+  
+  private func nativeLog(_ message: String) {
+    NSLog(message)
+    methodChannel?.invokeMethod("log", arguments: message)
+  }
   
   override func application(
     _ application: UIApplication,
@@ -64,6 +70,7 @@ import AVFoundation
       name: "com.galaxy/background_keep_alive",
       binaryMessenger: controller.binaryMessenger
     )
+    self.methodChannel = channel
     
     channel.setMethodCallHandler { [weak self] (call, result) in
       switch call.method {
@@ -93,8 +100,9 @@ import AVFoundation
         options: [.mixWithOthers]
       )
       try session.setActive(true)
+      nativeLog("[KeepAlive] 音频会话配置成功")
     } catch {
-      NSLog("[KeepAlive] 音频会话配置失败: \(error)")
+      nativeLog("[KeepAlive] 音频会话配置失败: \(error)")
     }
   }
   
@@ -102,14 +110,14 @@ import AVFoundation
   
   private func enableKeepAlive() {
     isKeepAliveEnabled = true
-    NSLog("[KeepAlive] 后台保活已启用")
+    nativeLog("[KeepAlive] 后台保活已启用")
   }
   
   private func disableKeepAlive() {
     isKeepAliveEnabled = false
     stopSilentAudio()
     endBackgroundTask()
-    NSLog("[KeepAlive] 后台保活已禁用")
+    nativeLog("[KeepAlive] 后台保活已禁用")
   }
   
   // MARK: - Background Task
@@ -117,14 +125,16 @@ import AVFoundation
   private func beginBackgroundTask() {
     guard backgroundTask == .invalid else { return }
     backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "MQTTKeepAlive") { [weak self] in
+      self?.nativeLog("[KeepAlive] 系统即将结束当前后台任务 (id=\(self?.backgroundTask.rawValue ?? 0))")
       // 系统即将结束后台任务，重新申请
       self?.endBackgroundTask()
       // 尝试重新申请后台时间
       DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+        self?.nativeLog("[KeepAlive] 尝试重新开始后台任务...")
         self?.beginBackgroundTask()
       }
     }
-    NSLog("[KeepAlive] 后台任务已开始, id=\(backgroundTask.rawValue)")
+    nativeLog("[KeepAlive] 后台任务已开始, id=\(backgroundTask.rawValue), 剩余时间: \(UIApplication.shared.backgroundTimeRemaining)s")
   }
   
   private func endBackgroundTask() {
@@ -174,41 +184,49 @@ import AVFoundation
       audioPlayer = try AVAudioPlayer(data: wavData)
       audioPlayer?.numberOfLoops = -1 // 无限循环
       audioPlayer?.volume = 0.0 // 静音
-      audioPlayer?.play()
-      NSLog("[KeepAlive] 静音音频已开始播放")
+      let playSuccess = audioPlayer?.play() ?? false
+      nativeLog("[KeepAlive] 静音音频尝试播放, 结果: \(playSuccess)")
     } catch {
-      NSLog("[KeepAlive] 静音音频播放失败: \(error)")
+      nativeLog("[KeepAlive] 静音音频播放异常: \(error)")
     }
   }
   
   private func stopSilentAudio() {
     audioPlayer?.stop()
     audioPlayer = nil
-    NSLog("[KeepAlive] 静音音频已停止")
+    nativeLog("[KeepAlive] 静音音频已停止")
   }
   
   // MARK: - App Lifecycle
   
   @objc private func appDidEnterBackground() {
-    NSLog("[KeepAlive] App 进入后台")
+    nativeLog("[KeepAlive] App 进入后台, 启用保活: \(isKeepAliveEnabled)")
     guard isKeepAliveEnabled else {
-      NSLog("[KeepAlive] 保活未启用，不执行后台保活")
+      nativeLog("[KeepAlive] 保活未启用，不执行后台保活")
       return
     }
     beginBackgroundTask()
     startSilentAudio()
     
-    // 启动一个定时器，定期续期后台任务
+    var tickCount = 0
     keepAliveTimer?.invalidate()
-    keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 25, repeats: true) { [weak self] _ in
-      NSLog("[KeepAlive] 续期后台任务")
-      self?.endBackgroundTask()
-      self?.beginBackgroundTask()
+    // 改为每 2 秒打印一次存活日志，方便观察到底在多少秒断开的
+    keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+      tickCount += 2
+      let timeRemaining = UIApplication.shared.backgroundTimeRemaining
+      self?.nativeLog("[KeepAlive] 存活 tick \(tickCount)s, 后台可用时间: \(timeRemaining)s")
+      
+      // 每 20 秒续期一次后台任务
+      if tickCount % 20 == 0 {
+        self?.nativeLog("[KeepAlive] 准备重置后台任务")
+        self?.endBackgroundTask()
+        self?.beginBackgroundTask()
+      }
     }
   }
   
   @objc private func appWillEnterForeground() {
-    NSLog("[KeepAlive] App 回到前台")
+    nativeLog("[KeepAlive] App 回到前台")
     keepAliveTimer?.invalidate()
     keepAliveTimer = nil
     stopSilentAudio()
