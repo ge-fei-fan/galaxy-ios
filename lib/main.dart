@@ -421,6 +421,13 @@ class MqttController extends ChangeNotifier {
     status = '订阅失败: $topic';
     notifyListeners();
   }
+
+  Future<void> sendTestNotification() async {
+    await _notificationService.showMessage(
+      '测试主题',
+      '这是一条测试通知，时间：${DateTime.now().toLocal()}',
+    );
+  }
 }
 
 class ConfigPage extends StatefulWidget {
@@ -583,6 +590,12 @@ class _ConfigPageState extends State<ConfigPage> {
                 label: const Text('断开'),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: widget.controller.sendTestNotification,
+            icon: const Icon(Icons.notifications_active),
+            label: const Text('测试通知'),
           ),
           const SizedBox(height: 16),
           Row(
