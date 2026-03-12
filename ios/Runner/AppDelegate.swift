@@ -26,14 +26,25 @@ import AVFoundation
     configureAudioSession()
     
     // 监听 App 生命周期
-    NotificationCenter.default.addObserver(
-      self, selector: #selector(appDidEnterBackground),
-      name: UIApplication.didEnterBackgroundNotification, object: nil
-    )
-    NotificationCenter.default.addObserver(
-      self, selector: #selector(appWillEnterForeground),
-      name: UIApplication.willEnterForegroundNotification, object: nil
-    )
+    if #available(iOS 13.0, *) {
+      NotificationCenter.default.addObserver(
+        self, selector: #selector(appDidEnterBackground),
+        name: UIScene.didEnterBackgroundNotification, object: nil
+      )
+      NotificationCenter.default.addObserver(
+        self, selector: #selector(appWillEnterForeground),
+        name: UIScene.willEnterForegroundNotification, object: nil
+      )
+    } else {
+      NotificationCenter.default.addObserver(
+        self, selector: #selector(appDidEnterBackground),
+        name: UIApplication.didEnterBackgroundNotification, object: nil
+      )
+      NotificationCenter.default.addObserver(
+        self, selector: #selector(appWillEnterForeground),
+        name: UIApplication.willEnterForegroundNotification, object: nil
+      )
+    }
     
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
