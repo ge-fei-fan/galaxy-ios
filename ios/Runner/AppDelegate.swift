@@ -25,41 +25,42 @@ import AVFoundation
       UNUserNotificationCenter.current().delegate = self
     }
     
-    // Ensure GeneratedPluginRegistrant is called first to setup engine if not already setup
     GeneratedPluginRegistrant.register(with: self)
     
-    // Obtain the FlutterViewController from the AppDelegate's window
-    guard let controller = window?.rootViewController as? FlutterViewController else {
-      NSLog("[KeepAlive] 无法获取 FlutterViewController, 致命错误")
-      return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    // 延迟绑定 MethodChannel，确保 Flutter 引擎和 ViewController 已经完全初始化
+    DispatchQueue.main.async { [weak self] in
+        guard let self = self else { return }
+        if let controller = self.window?.rootViewController as? FlutterViewController {
+            let channel = FlutterMethodChannel(
+                name: "com.galaxy/background_keep_alive",
+                binaryMessenger: controller.binaryMessenger
+            )
+            self.methodChannel = channel
+            
+            channel.setMethodCallHandler { [weak self] (call, result) in
+                guard let self = self else { return }
+                self.nativeLog("[KeepAlive] 收到 Flutter 端调用方法: \(call.method)")
+                switch call.method {
+                case "enableKeepAlive":
+                    self.enableKeepAlive()
+                    result(true)
+                case "disableKeepAlive":
+                    self.disableKeepAlive()
+                    result(true)
+                case "isKeepAliveActive":
+                    self.nativeLog("[KeepAlive] 检查保活状态: \(self.isKeepAliveEnabled)")
+                    result(self.isKeepAliveEnabled)
+                default:
+                    result(FlutterMethodNotImplemented)
+                }
+            }
+            
+            self.configureAudioSession()
+            self.nativeLog("[KeepAlive] AppDelegate: MethodChannel 通信绑定成功 ✅")
+        } else {
+            NSLog("[KeepAlive] AppDelegate: 未找到 FlutterViewController，通道绑定失败")
+        }
     }
-    
-    let channel = FlutterMethodChannel(
-      name: "com.galaxy/background_keep_alive",
-      binaryMessenger: controller.binaryMessenger
-    )
-    self.methodChannel = channel
-    
-    channel.setMethodCallHandler { [weak self] (call, result) in
-      guard let self = self else { return }
-      self.nativeLog("[KeepAlive] 收到 Flutter 端调用方法: \(call.method)")
-      switch call.method {
-      case "enableKeepAlive":
-        self.enableKeepAlive()
-        result(true)
-      case "disableKeepAlive":
-        self.disableKeepAlive()
-        result(true)
-      case "isKeepAliveActive":
-        self.nativeLog("[KeepAlive] 检查保活状态: \(self.isKeepAliveEnabled)")
-        result(self.isKeepAliveEnabled)
-      default:
-        result(FlutterMethodNotImplemented)
-      }
-    }
-    
-    configureAudioSession()
-    nativeLog("[KeepAlive] AppDelegate: MethodChannel 通信绑定成功 ✅")
     
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
