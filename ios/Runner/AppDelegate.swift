@@ -18,7 +18,7 @@ import UserNotifications
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
   }
 
-  @available(iOS 14.0, *)
+  @available(iOS 10.0, *)
   override func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
