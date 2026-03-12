@@ -4,7 +4,7 @@ import UserNotifications
 import AVFoundation
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+@objc class AppDelegate: FlutterAppDelegate {
   
   private var audioPlayer: AVAudioPlayer?
   private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
@@ -16,6 +16,30 @@ import AVFoundation
     NSLog(message)
     methodChannel?.invokeMethod("log", arguments: message)
   }
+
+  // 供 SceneDelegate 在 Scene 启动后调用，绑定 MethodChannel
+  func bindMethodChannel(_ channel: FlutterMethodChannel) {
+    methodChannel = channel
+    channel.setMethodCallHandler { [weak self] (call, result) in
+      guard let self = self else { return }
+      self.nativeLog("[KeepAlive] 收到 Flutter 端调用方法: \(call.method)")
+      switch call.method {
+      case "enableKeepAlive":
+        self.enableKeepAlive()
+        result(true)
+      case "disableKeepAlive":
+        self.disableKeepAlive()
+        result(true)
+      case "isKeepAliveActive":
+        self.nativeLog("[KeepAlive] 检查保活状态: \(self.isKeepAliveEnabled)")
+        result(self.isKeepAliveEnabled)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+    configureAudioSession()
+    nativeLog("[KeepAlive] AppDelegate: MethodChannel 绑定完成 ✅")
+  }
   
   override func application(
     _ application: UIApplication,
@@ -26,41 +50,6 @@ import AVFoundation
     }
     
     GeneratedPluginRegistrant.register(with: self)
-    
-    // 延迟绑定 MethodChannel，确保 Flutter 引擎和 ViewController 已经完全初始化
-    DispatchQueue.main.async { [weak self] in
-        guard let self = self else { return }
-        if let controller = self.window?.rootViewController as? FlutterViewController {
-            let channel = FlutterMethodChannel(
-                name: "com.galaxy/background_keep_alive",
-                binaryMessenger: controller.binaryMessenger
-            )
-            self.methodChannel = channel
-            
-            channel.setMethodCallHandler { [weak self] (call, result) in
-                guard let self = self else { return }
-                self.nativeLog("[KeepAlive] 收到 Flutter 端调用方法: \(call.method)")
-                switch call.method {
-                case "enableKeepAlive":
-                    self.enableKeepAlive()
-                    result(true)
-                case "disableKeepAlive":
-                    self.disableKeepAlive()
-                    result(true)
-                case "isKeepAliveActive":
-                    self.nativeLog("[KeepAlive] 检查保活状态: \(self.isKeepAliveEnabled)")
-                    result(self.isKeepAliveEnabled)
-                default:
-                    result(FlutterMethodNotImplemented)
-                }
-            }
-            
-            self.configureAudioSession()
-            self.nativeLog("[KeepAlive] AppDelegate: MethodChannel 通信绑定成功 ✅")
-        } else {
-            NSLog("[KeepAlive] AppDelegate: 未找到 FlutterViewController，通道绑定失败")
-        }
-    }
     
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
@@ -202,10 +191,6 @@ import AVFoundation
     audioPlayer?.stop()
     audioPlayer = nil
     nativeLog("[KeepAlive] 静音音频已停止")
-  }
-
-  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
-    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
   }
 
   @available(iOS 10.0, *)
