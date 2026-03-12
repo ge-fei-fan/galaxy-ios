@@ -185,36 +185,63 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  Future<void> init() async {
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    const initializationSettings = InitializationSettings(
-      iOS: iosSettings,
-    );
-    await _plugin.initialize(initializationSettings);
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+  /// 调试日志列表，用于在界面上展示
+  final List<String> debugLogs = [];
+
+  void _log(String message) {
+    final time = DateTime.now().toLocal().toString().substring(11, 19);
+    debugLogs.add('[$time] $message');
+    // 最多保留 50 条日志
+    if (debugLogs.length > 50) {
+      debugLogs.removeAt(0);
+    }
   }
 
-  Future<void> showMessage(String topic, String payload) async {
-    final id = DateTime.now().millisecondsSinceEpoch.remainder(100000);
-    const details = NotificationDetails(
-      iOS: DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      ),
-    );
-    await _plugin.show(id, 'MQTT: $topic', payload, details);
+  Future<void> init() async {
+    try {
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+      const initializationSettings = InitializationSettings(
+        iOS: iosSettings,
+      );
+      final initResult = await _plugin.initialize(initializationSettings);
+      _log('插件初始化结果: $initResult');
+
+      final permResult = await _plugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+      _log('权限请求结果: $permResult');
+    } catch (e) {
+      _log('初始化异常: $e');
+    }
+  }
+
+  Future<String> showMessage(String topic, String payload) async {
+    try {
+      final id = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+      _log('发送通知 id=$id');
+      const details = NotificationDetails(
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      );
+      await _plugin.show(id, 'MQTT: $topic', payload, details);
+      _log('通知发送成功');
+      return '✅ 通知发送成功 (id=$id)';
+    } catch (e) {
+      _log('通知发送异常: $e');
+      return '❌ 通知发送失败: $e';
+    }
   }
 }
 
@@ -422,11 +449,19 @@ class MqttController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 获取通知服务的调试日志
+  List<String> get notificationDebugLogs => _notificationService.debugLogs;
+
+  /// 最后一次测试通知的结果
+  String lastTestResult = '';
+
   Future<void> sendTestNotification() async {
-    await _notificationService.showMessage(
+    final result = await _notificationService.showMessage(
       '测试主题',
       '这是一条测试通知，时间：${DateTime.now().toLocal()}',
     );
+    lastTestResult = result;
+    notifyListeners();
   }
 }
 
@@ -481,6 +516,69 @@ class _ConfigPageState extends State<ConfigPage> {
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _showDebugLogs(BuildContext context) {
+    final logs = widget.controller.notificationDebugLogs;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        '🔔 通知调试日志',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: logs.isEmpty
+                      ? const Center(child: Text('暂无日志'))
+                      : ListView.builder(
+                          controller: scrollController,
+                          itemCount: logs.length,
+                          padding: const EdgeInsets.all(12),
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                logs[index],
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _saveConfig() async {
@@ -592,11 +690,48 @@ class _ConfigPageState extends State<ConfigPage> {
             ],
           ),
           const SizedBox(height: 12),
-          ElevatedButton.icon(
-            onPressed: widget.controller.sendTestNotification,
-            icon: const Icon(Icons.notifications_active),
-            label: const Text('测试通知'),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: widget.controller.sendTestNotification,
+                icon: const Icon(Icons.notifications_active),
+                label: const Text('测试通知'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: () => _showDebugLogs(context),
+                icon: const Icon(Icons.bug_report),
+                label: const Text('调试日志'),
+              ),
+            ],
           ),
+          if (widget.controller.lastTestResult.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: widget.controller.lastTestResult.startsWith('✅')
+                    ? Colors.green.shade50
+                    : Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: widget.controller.lastTestResult.startsWith('✅')
+                      ? Colors.green.shade200
+                      : Colors.red.shade200,
+                ),
+              ),
+              child: Text(
+                widget.controller.lastTestResult,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: widget.controller.lastTestResult.startsWith('✅')
+                      ? Colors.green.shade800
+                      : Colors.red.shade800,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
