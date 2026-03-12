@@ -9,12 +9,12 @@ if "%TAG%"=="" (
 )
 
 git rev-parse "%TAG%" >nul 2>&1
-if %errorlevel%==0 (
+if !errorlevel!==0 (
   echo Tag "%TAG%" 已存在，将直接推送远端。
 ) else (
   echo 创建 Tag "%TAG%"...
   git tag "%TAG%"
-  if %errorlevel% neq 0 (
+  if !errorlevel! neq 0 (
     echo 创建 Tag 失败。
     exit /b 1
   )
@@ -22,7 +22,7 @@ if %errorlevel%==0 (
 
 echo 推送 Tag 到远端...
 git push origin "%TAG%"
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
   echo 推送失败，请检查网络或权限。
   echo.
   pause
