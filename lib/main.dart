@@ -319,8 +319,10 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     }
     await _notificationService.init();
     
-    // 同步保活状态给原生
-    await _syncKeepAliveStateToNative();
+    // 延迟一点时间再同步保活状态给原生，确保原生 MethodChannel 已准备完毕
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _syncKeepAliveStateToNative();
+    });
     
     initialized = true;
     notifyListeners();
@@ -341,6 +343,11 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
         _reconnectDelaySeconds = 2; // 重置退避延迟
         _scheduleReconnect();
       }
+      // 回到前台时，也同步一次保活状态以防止原生状态丢失
+      unawaited(_syncKeepAliveStateToNative());
+    } else if (state == AppLifecycleState.hidden || state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      // 在应用即将被挂起/进入后台时，再强行同步一次状态给原生
+      unawaited(_syncKeepAliveStateToNative());
     }
   }
 
@@ -348,10 +355,13 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       if (config.keepAliveInBackground) {
         await _channel.invokeMethod('enableKeepAlive');
+        _notificationService.log('Flutter: 已通知原生启用保活');
       } else {
         await _channel.invokeMethod('disableKeepAlive');
+        _notificationService.log('Flutter: 已通知原生禁用保活');
       }
     } catch (e) {
+      _notificationService.log('Flutter: 同步保活状态失败: $e');
       debugPrint('Sync keep alive state failed: $e');
     }
   }
