@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -100,6 +101,7 @@ class MqttConfig {
     required this.clientId,
     this.username,
     this.password,
+    this.keepAliveInBackground = false,
   });
 
   final String host;
@@ -108,6 +110,7 @@ class MqttConfig {
   final String clientId;
   final String? username;
   final String? password;
+  final bool keepAliveInBackground;
 
   MqttConfig copyWith({
     String? host,
@@ -116,6 +119,7 @@ class MqttConfig {
     String? clientId,
     String? username,
     String? password,
+    bool? keepAliveInBackground,
   }) {
     return MqttConfig(
       host: host ?? this.host,
@@ -124,6 +128,7 @@ class MqttConfig {
       clientId: clientId ?? this.clientId,
       username: username ?? this.username,
       password: password ?? this.password,
+      keepAliveInBackground: keepAliveInBackground ?? this.keepAliveInBackground,
     );
   }
 
@@ -135,6 +140,7 @@ class MqttConfig {
       'clientId': clientId,
       'username': username,
       'password': password,
+      'keepAliveInBackground': keepAliveInBackground,
     };
   }
 
@@ -146,6 +152,7 @@ class MqttConfig {
       clientId: map['clientId'] as String? ?? 'flutter_mqtt_client',
       username: map['username'] as String?,
       password: map['password'] as String?,
+      keepAliveInBackground: map['keepAliveInBackground'] as bool? ?? false,
     );
   }
 }
@@ -245,11 +252,13 @@ class NotificationService {
   }
 }
 
-class MqttController extends ChangeNotifier {
+class MqttController extends ChangeNotifier with WidgetsBindingObserver {
   final NotificationService _notificationService = NotificationService();
   final Box _settingsBox = Hive.box('settings');
   final Box _topicsBox = Hive.box('topics');
   final Box _messagesBox = Hive.box('messages');
+
+  static const _channel = MethodChannel('com.galaxy/background_keep_alive');
 
   bool initialized = false;
   bool connected = false;
@@ -259,6 +268,7 @@ class MqttController extends ChangeNotifier {
     port: 1883,
     useTls: false,
     clientId: 'flutter_mqtt_client',
+    keepAliveInBackground: false,
   );
   List<String> topics = [];
   String? selectedTopic;
@@ -267,7 +277,12 @@ class MqttController extends ChangeNotifier {
   MqttServerClient? _client;
   StreamSubscription<List<MqttReceivedMessage<MqttMessage>>>? _subscription;
 
+  bool _isExplicitDisconnect = false;
+  int _reconnectDelaySeconds = 2;
+  Timer? _reconnectTimer;
+
   Future<void> initialize() async {
+    WidgetsBinding.instance.addObserver(this);
     final storedConfig = _settingsBox.get('config');
     if (storedConfig is Map) {
       config = MqttConfig.fromMap(storedConfig);
@@ -293,18 +308,59 @@ class MqttController extends ChangeNotifier {
       selectedTopic = topics.first;
     }
     await _notificationService.init();
+    
+    // 同步保活状态给原生
+    await _syncKeepAliveStateToNative();
+    
     initialized = true;
     notifyListeners();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _reconnectTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // 从后台回到前台时，如果发现意外断开，并且不是用户主动断开，则立即重试重连
+      if (!connected && !_isExplicitDisconnect && _client != null) {
+        _reconnectDelaySeconds = 2; // 重置退避延迟
+        _scheduleReconnect();
+      }
+    }
+  }
+
+  Future<void> _syncKeepAliveStateToNative() async {
+    try {
+      if (config.keepAliveInBackground) {
+        await _channel.invokeMethod('enableKeepAlive');
+      } else {
+        await _channel.invokeMethod('disableKeepAlive');
+      }
+    } catch (e) {
+      debugPrint('Sync keep alive state failed: $e');
+    }
+  }
+
   Future<void> saveConfig(MqttConfig newConfig) async {
+    final oldKeepAlive = config.keepAliveInBackground;
     config = newConfig;
     await _settingsBox.put('config', config.toMap());
+    if (oldKeepAlive != config.keepAliveInBackground) {
+      await _syncKeepAliveStateToNative();
+    }
     notifyListeners();
   }
 
   Future<void> connect() async {
     if (connected) return;
+    _isExplicitDisconnect = false;
+    _reconnectTimer?.cancel();
+    
     status = '连接中...';
     notifyListeners();
 
@@ -336,6 +392,7 @@ class MqttController extends ChangeNotifier {
       connected = false;
       _client?.disconnect();
       notifyListeners();
+      _scheduleReconnect();
       return;
     }
 
@@ -345,10 +402,12 @@ class MqttController extends ChangeNotifier {
       connected = false;
       _client?.disconnect();
       notifyListeners();
+      _scheduleReconnect();
       return;
     }
 
     connected = true;
+    _reconnectDelaySeconds = 2; // 连接成功后重置退避延迟
     status = '已连接';
     _listenToMessages();
     for (final topic in topics) {
@@ -358,12 +417,31 @@ class MqttController extends ChangeNotifier {
   }
 
   void disconnect() {
+    _isExplicitDisconnect = true;
+    _reconnectTimer?.cancel();
     _subscription?.cancel();
     _subscription = null;
     _client?.disconnect();
     connected = false;
     status = '已断开';
     notifyListeners();
+  }
+
+  void _scheduleReconnect() {
+    if (_isExplicitDisconnect) return;
+    
+    _reconnectTimer?.cancel();
+    status = '$_reconnectDelaySeconds 秒后重连...';
+    notifyListeners();
+    
+    _reconnectTimer = Timer(Duration(seconds: _reconnectDelaySeconds), () {
+      if (_isExplicitDisconnect) return;
+      connect();
+      // 指数退避，上限为 64 秒
+      if (_reconnectDelaySeconds < 64) {
+        _reconnectDelaySeconds *= 2;
+      }
+    });
   }
 
   Future<void> addTopic(String topic) async {
@@ -435,8 +513,12 @@ class MqttController extends ChangeNotifier {
 
   void _handleDisconnected() {
     connected = false;
-    status = '已断开';
+    status = '连接意外断开';
     notifyListeners();
+    
+    if (!_isExplicitDisconnect) {
+      _scheduleReconnect();
+    }
   }
 
   void _handleSubscribed(String topic) {
@@ -481,6 +563,7 @@ class _ConfigPageState extends State<ConfigPage> {
   late final TextEditingController _usernameController;
   late final TextEditingController _passwordController;
   bool _useTls = false;
+  bool _keepAliveInBackground = false;
 
   @override
   void initState() {
@@ -492,6 +575,7 @@ class _ConfigPageState extends State<ConfigPage> {
     _usernameController = TextEditingController(text: config.username ?? '');
     _passwordController = TextEditingController(text: config.password ?? '');
     _useTls = config.useTls;
+    _keepAliveInBackground = config.keepAliveInBackground;
   }
 
   @override
@@ -505,6 +589,7 @@ class _ConfigPageState extends State<ConfigPage> {
       _usernameController.text = config.username ?? '';
       _passwordController.text = config.password ?? '';
       _useTls = config.useTls;
+      _keepAliveInBackground = config.keepAliveInBackground;
     }
   }
 
@@ -595,6 +680,7 @@ class _ConfigPageState extends State<ConfigPage> {
         password: _passwordController.text.trim().isEmpty
             ? null
             : _passwordController.text.trim(),
+        keepAliveInBackground: _keepAliveInBackground,
       ),
     );
     if (!mounted) return;
@@ -646,6 +732,12 @@ class _ConfigPageState extends State<ConfigPage> {
             value: _useTls,
             onChanged: (value) => setState(() => _useTls = value),
             title: const Text('启用 TLS'),
+          ),
+          SwitchListTile(
+            value: _keepAliveInBackground,
+            onChanged: (value) => setState(() => _keepAliveInBackground = value),
+            title: const Text('iOS 后台保活'),
+            subtitle: const Text('开启后进入后台继续接收消息'),
           ),
           const SizedBox(height: 12),
           TextField(
