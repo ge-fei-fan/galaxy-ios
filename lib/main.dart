@@ -285,6 +285,10 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
   int _reconnectDelaySeconds = 2;
   Timer? _reconnectTimer;
 
+  // --- iOS 保活同步：避免生命周期抖动导致反复弹 VPN 授权框 ---
+  bool? _lastSyncedKeepAlive;
+  DateTime? _lastSyncTime;
+
   Future<void> initialize() async {
     WidgetsBinding.instance.addObserver(this);
 
@@ -322,10 +326,11 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
       selectedTopic = topics.first;
     }
     await _notificationService.init();
-    
-    // 延迟一点时间再同步保活状态给原生，确保原生 MethodChannel 已准备完毕
+
+    // 延迟一点时间再同步保活状态给原生，确保原生 MethodChannel 已准备完毕。
+    // 注意：不要在生命周期回调里反复同步，否则会导致 iOS 反复弹“添加 VPN 配置”。
     Future.delayed(const Duration(milliseconds: 500), () {
-      _syncKeepAliveStateToNative();
+      unawaited(_syncKeepAliveStateToNative(force: true));
     });
     
     initialized = true;
@@ -347,16 +352,26 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
         _reconnectDelaySeconds = 2; // 重置退避延迟
         _scheduleReconnect();
       }
-      // 回到前台时，也同步一次保活状态以防止原生状态丢失
-      unawaited(_syncKeepAliveStateToNative());
-    } else if (state == AppLifecycleState.hidden || state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
-      // 在应用即将被挂起/进入后台时，再强行同步一次状态给原生
-      unawaited(_syncKeepAliveStateToNative());
     }
   }
 
-  Future<void> _syncKeepAliveStateToNative() async {
+  Future<void> _syncKeepAliveStateToNative({bool force = false}) async {
     try {
+      final desired = config.keepAliveInBackground;
+
+      // 防抖：同一个值在短时间内重复同步，直接跳过（避免系统重复弹窗）
+      final now = DateTime.now();
+      if (!force && _lastSyncedKeepAlive == desired && _lastSyncTime != null) {
+        final elapsed = now.difference(_lastSyncTime!);
+        if (elapsed < const Duration(seconds: 3)) {
+          _notificationService.log('Flutter: 保活状态短时间内重复同步，已跳过');
+          return;
+        }
+      }
+
+      _lastSyncedKeepAlive = desired;
+      _lastSyncTime = now;
+
       if (config.keepAliveInBackground) {
         await _channel.invokeMethod('enableKeepAlive');
         _notificationService.log('Flutter: 已通知原生启用保活');

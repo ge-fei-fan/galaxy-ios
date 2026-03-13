@@ -12,6 +12,10 @@ import NetworkExtension
     private var tunnelManager: NETunnelProviderManager?
     /// 保活开关
     private var isKeepAliveEnabled = false
+    /// 防止并发/重复保存偏好导致系统重复弹窗
+    private var isSavingPreferences = false
+    /// 防止并发/重复 start 触发系统弹窗/竞态
+    private var isStartingTunnel = false
     /// MethodChannel 引用
     private var methodChannel: FlutterMethodChannel?
     /// VPN 状态观察者
@@ -29,6 +33,11 @@ import NetworkExtension
     private func nativeLog(_ message: String) {
         NSLog("[KeepAlive] \(message)")
         methodChannel?.invokeMethod("log", arguments: message)
+    }
+
+    private func nativeLogError(_ prefix: String, _ error: Error) {
+        let nsError = error as NSError
+        nativeLog("\(prefix): \(nsError.localizedDescription) (domain=\(nsError.domain) code=\(nsError.code) userInfo=\(nsError.userInfo))")
     }
 
     // MARK: - MethodChannel Binding（由 SceneDelegate 在 Scene 激活后调用）
@@ -102,7 +111,7 @@ import NetworkExtension
         NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, error in
             guard let self else { return }
             if let error {
-                self.nativeLog("⚠️  加载已有 VPN 配置失败: \(error.localizedDescription)")
+                self.nativeLogError("⚠️  加载已有 VPN 配置失败", error)
                 return
             }
             // 找到我们创建的配置
@@ -123,20 +132,50 @@ import NetworkExtension
     // MARK: - VPN 隧道建立
 
     private func setupAndStartTunnel(completion: @escaping (Bool) -> Void) {
+        if isStartingTunnel {
+            nativeLog("⏳ 已在启动/保存中，忽略重复启用请求（避免重复弹窗）")
+            completion(true)
+            return
+        }
+        isStartingTunnel = true
+
         // 先尝试加载已有配置
         NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, error in
             guard let self else { return }
 
             if let error {
-                self.nativeLog("❌ 加载 VPN 配置失败: \(error.localizedDescription)")
+                self.nativeLogError("❌ 加载 VPN 配置失败", error)
+                self.isStartingTunnel = false
                 completion(false)
                 return
             }
 
-            // 复用已有配置 or 新建
-            let manager = managers?.first {
-                $0.localizedDescription == Self.vpnConfigDescription
-            } ?? NETunnelProviderManager()
+            // 复用已有配置（已有配置不再 saveToPreferences，避免重复授权弹窗）
+            if let existing = managers?.first(where: { $0.localizedDescription == Self.vpnConfigDescription }) {
+                self.nativeLog("✅ 复用已有 VPN 配置（不再重复保存偏好），准备启动隧道...")
+                self.tunnelManager = existing
+
+                existing.loadFromPreferences { [weak self] error in
+                    guard let self else { return }
+                    if let error {
+                        self.nativeLogError("❌ 重新加载 VPN 配置失败", error)
+                        self.isStartingTunnel = false
+                        completion(false)
+                        return
+                    }
+
+                    self.observeVPNStatus()
+                    self.startVPNConnection(manager: existing) { [weak self] success in
+                        guard let self else { return }
+                        self.isStartingTunnel = false
+                        completion(success)
+                    }
+                }
+                return
+            }
+
+            // 没有找到配置 → 首次创建并保存（这一步会触发系统弹窗）
+            let manager = NETunnelProviderManager()
 
             // 配置 Protocol
             let proto = NETunnelProviderProtocol()
@@ -150,11 +189,22 @@ import NetworkExtension
 
             self.nativeLog("💾 正在保存 VPN 配置到系统偏好...")
 
+            if self.isSavingPreferences {
+                self.nativeLog("⏳ 正在保存 VPN 偏好，忽略重复 saveToPreferences（避免重复弹窗）")
+                self.isStartingTunnel = false
+                completion(true)
+                return
+            }
+            self.isSavingPreferences = true
+
             manager.saveToPreferences { [weak self] error in
                 guard let self else { return }
 
+                self.isSavingPreferences = false
+
                 if let error {
-                    self.nativeLog("❌ 保存 VPN 配置失败: \(error.localizedDescription)")
+                    self.nativeLogError("❌ 保存 VPN 配置失败", error)
+                    self.isStartingTunnel = false
                     completion(false)
                     return
                 }
@@ -167,13 +217,18 @@ import NetworkExtension
                     guard let self else { return }
 
                     if let error {
-                        self.nativeLog("❌ 重新加载 VPN 配置失败: \(error.localizedDescription)")
+                        self.nativeLogError("❌ 重新加载 VPN 配置失败", error)
+                        self.isStartingTunnel = false
                         completion(false)
                         return
                     }
 
                     self.observeVPNStatus()
-                    self.startVPNConnection(manager: manager, completion: completion)
+                    self.startVPNConnection(manager: manager) { [weak self] success in
+                        guard let self else { return }
+                        self.isStartingTunnel = false
+                        completion(success)
+                    }
                 }
             }
         }
@@ -227,8 +282,8 @@ import NetworkExtension
             object: tunnelManager?.connection,
             queue: .main
         ) { [weak self] _ in
-            guard let self, let connection = self.tunnelManager?.connection else { return }
-            let status = connection.status
+            guard let self, let manager = self.tunnelManager else { return }
+            let status = manager.connection.status
             self.nativeLog("📶 VPN 状态变化 → \(self.describeStatus(status))")
 
             // 如果意外断开且保活开关仍开启，自动重连
@@ -237,7 +292,11 @@ import NetworkExtension
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
                     guard let self, self.isKeepAliveEnabled else { return }
                     self.nativeLog("🔄 正在执行自动重连...")
-                    self.startVPNConnection(manager: connection.manager as! NETunnelProviderManager) { success in
+                    guard let manager = self.tunnelManager else {
+                        self.nativeLog("❌ 自动重连失败：tunnelManager 为空")
+                        return
+                    }
+                    self.startVPNConnection(manager: manager) { success in
                         self.nativeLog("🔄 自动重连结果: \(success ? "✅ 成功" : "❌ 失败")")
                     }
                 }
