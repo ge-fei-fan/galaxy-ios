@@ -1,30 +1,35 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 
 import 'package:galaxy_ios/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  setUpAll(() async {
+    // 由于测试不会执行 main()，需要手动初始化 Hive 并打开 box，
+    // 否则 MqttController 构造函数里 Hive.box(...) 会报错。
+    final dir = await Directory.systemTemp.createTemp('galaxy_ios_test_');
+    Hive.init(dir.path);
+    await Hive.openBox('settings');
+    await Hive.openBox('topics');
+    await Hive.openBox('messages');
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  tearDownAll(() async {
+    await Hive.close();
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('App boots and shows bottom tabs', (WidgetTester tester) async {
+    // 只做最小化冒烟测试：能启动并渲染出底部 Tab 文案。
+    await tester.pumpWidget(
+      const MqttApp(platformOverride: TargetPlatform.iOS),
+    );
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('配置'), findsOneWidget);
+    expect(find.text('主题'), findsOneWidget);
+    expect(find.text('消息'), findsOneWidget);
   });
 }

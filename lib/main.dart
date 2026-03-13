@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -18,7 +20,10 @@ Future<void> main() async {
 }
 
 class MqttApp extends StatefulWidget {
-  const MqttApp({super.key});
+  const MqttApp({super.key, this.platformOverride});
+
+  /// 用于测试或特定场景强制指定平台分支（避免修改全局 debug 变量）
+  final TargetPlatform? platformOverride;
 
   @override
   State<MqttApp> createState() => _MqttAppState();
@@ -43,9 +48,13 @@ class _MqttAppState extends State<MqttApp> {
 
   @override
   Widget build(BuildContext context) {
+    final platform = widget.platformOverride ?? defaultTargetPlatform;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
+        final int totalMessageCount = _controller.messagesByTopic.values
+            .fold<int>(0, (sum, list) => sum + list.length);
+
         return MaterialApp(
           title: 'MQTT 客户端',
           theme: ThemeData(
@@ -68,28 +77,160 @@ class _MqttAppState extends State<MqttApp> {
                     ],
                   )
                 : const Center(child: CircularProgressIndicator()),
-            bottomNavigationBar: BottomNavigationBar(
-              currentIndex: _currentIndex,
-              onTap: (index) => setState(() => _currentIndex = index),
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.settings),
-                  label: '配置',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.list_alt),
-                  label: '主题',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.message),
-                  label: '消息',
-                ),
-              ],
-            ),
+            bottomNavigationBar: platform == TargetPlatform.iOS
+                ? _IOSWeChatLikeTabBar(
+                    currentIndex: _currentIndex,
+                    onTap: (index) => setState(() => _currentIndex = index),
+                    items: [
+                      const _IOSWeChatLikeTabBarItem(
+                        label: '配置',
+                        icon: CupertinoIcons.settings,
+                        activeIcon: CupertinoIcons.settings_solid,
+                      ),
+                      const _IOSWeChatLikeTabBarItem(
+                        label: '主题',
+                        icon: CupertinoIcons.square_list,
+                        activeIcon: CupertinoIcons.square_list_fill,
+                      ),
+                      _IOSWeChatLikeTabBarItem(
+                        label: '消息',
+                        icon: CupertinoIcons.chat_bubble_2,
+                        activeIcon: CupertinoIcons.chat_bubble_2_fill,
+                        badgeCount: totalMessageCount,
+                      ),
+                    ],
+                  )
+                : BottomNavigationBar(
+                    currentIndex: _currentIndex,
+                    onTap: (index) => setState(() => _currentIndex = index),
+                    items: const [
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.settings),
+                        label: '配置',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.list_alt),
+                        label: '主题',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.message),
+                        label: '消息',
+                      ),
+                    ],
+                  ),
           ),
         );
       },
     );
+  }
+}
+
+class _IOSWeChatLikeTabBarItem {
+  const _IOSWeChatLikeTabBarItem({
+    required this.label,
+    required this.icon,
+    required this.activeIcon,
+    this.badgeCount,
+  });
+
+  final String label;
+  final IconData icon;
+  final IconData activeIcon;
+  final int? badgeCount;
+}
+
+class _IOSWeChatLikeTabBar extends StatelessWidget {
+  const _IOSWeChatLikeTabBar({
+    required this.currentIndex,
+    required this.onTap,
+    required this.items,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  final List<_IOSWeChatLikeTabBarItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    const activeColor = Color(0xFF1677FF); // 类似微信的蓝色
+    const inactiveColor = Color(0xFF8E8E93); // iOS 系统灰
+
+    // 使用 CupertinoTabBar 来获得 iOS 风格的高度/动效，并定制背景/分割线。
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: Color(0x1F000000), width: 0.5),
+        ),
+      ),
+      child: CupertinoTabBar(
+        currentIndex: currentIndex,
+        onTap: onTap,
+        activeColor: activeColor,
+        inactiveColor: inactiveColor,
+        backgroundColor: const Color(0xFFF7F7F7),
+        items: [
+          for (var i = 0; i < items.length; i++)
+            BottomNavigationBarItem(
+              label: items[i].label,
+              icon: _buildIcon(
+                icon: items[i].icon,
+                badgeCount: items[i].badgeCount,
+                color: inactiveColor,
+              ),
+              activeIcon: _buildIcon(
+                icon: items[i].activeIcon,
+                badgeCount: items[i].badgeCount,
+                color: activeColor,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIcon({
+    required IconData icon,
+    required Color color,
+    int? badgeCount,
+  }) {
+    final showBadge = (badgeCount ?? 0) > 0;
+    final badgeText = _formatBadge(badgeCount ?? 0);
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(icon, color: color),
+        if (showBadge)
+          Positioned(
+            right: -10,
+            top: -4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1677FF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                badgeText,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  height: 1.2,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  String _formatBadge(int count) {
+    if (count <= 0) return '';
+    if (count > 99) return '99+';
+    return count.toString();
   }
 }
 
@@ -284,6 +425,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
   bool _isExplicitDisconnect = false;
   int _reconnectDelaySeconds = 2;
   Timer? _reconnectTimer;
+  Timer? _keepAliveSyncTimer;
 
   Future<void> initialize() async {
     WidgetsBinding.instance.addObserver(this);
@@ -322,10 +464,13 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
       selectedTopic = topics.first;
     }
     await _notificationService.init();
-    
-    // 延迟一点时间再同步保活状态给原生，确保原生 MethodChannel 已准备完毕
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _syncKeepAliveStateToNative();
+ 
+    // 延迟一点时间再同步保活状态给原生，确保原生 MethodChannel 已准备完毕。
+    // 注意：在 Widget Test(fakeAsync) 中，未处理的 Future.delayed/Timer 会导致 pending timers 报错。
+    // 这里使用可取消的 Timer，并在 dispose() 中 cancel。
+    _keepAliveSyncTimer?.cancel();
+    _keepAliveSyncTimer = Timer(const Duration(milliseconds: 500), () {
+      unawaited(_syncKeepAliveStateToNative());
     });
     
     initialized = true;
@@ -336,6 +481,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _reconnectTimer?.cancel();
+    _keepAliveSyncTimer?.cancel();
     super.dispose();
   }
 
