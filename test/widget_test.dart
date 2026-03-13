@@ -27,6 +27,7 @@ void main() {
       const MqttApp(platformOverride: TargetPlatform.iOS),
     );
     await tester.pump();
+    expect(find.byType(MaterialApp), findsOneWidget);
 
     expect(find.text('配置'), findsOneWidget);
     expect(find.text('主题'), findsOneWidget);

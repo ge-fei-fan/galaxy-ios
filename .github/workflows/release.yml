@@ -23,11 +23,19 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Install ldid (for TrollStore entitlements)
+        run: brew install ldid
+
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build iOS (no codesign)
         run: flutter build ios --release --no-codesign
+
+      - name: Build & Embed PacketTunnelExtension
+        run: |
+          chmod +x scripts/build-tunnel-extension.sh
+          bash scripts/build-tunnel-extension.sh build/ios/iphoneos/Runner.app
 
       - name: Create IPA
         run: |
@@ -50,5 +58,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           body: |
             Release for ${{ github.ref_name }}
-            - IPA is unsigned (no codesign)
-            - Install via AltStore/Sideloadly or similar tools
+            - Includes PacketTunnelExtension for VPN keep-alive
+            - Entitlements injected with ldid (TrollStore compatible)
+            - Install via TrollStore / AltStore / Sideloadly
