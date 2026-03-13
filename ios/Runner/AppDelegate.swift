@@ -1,175 +1,279 @@
 import Flutter
 import UIKit
 import UserNotifications
-import AVFoundation
+import NetworkExtension
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
 
-  // MARK: - Properties
+    // MARK: - Properties
 
-  /// 静音音频播放器，设为实例属性防止 ARC 提前释放
-  private var audioPlayer: AVAudioPlayer?
-  /// 保活开关
-  private var isKeepAliveEnabled = false
-  /// MethodChannel 引用
-  private var methodChannel: FlutterMethodChannel?
+    /// VPN 隧道配置管理器
+    private var tunnelManager: NETunnelProviderManager?
+    /// 保活开关
+    private var isKeepAliveEnabled = false
+    /// MethodChannel 引用
+    private var methodChannel: FlutterMethodChannel?
+    /// VPN 状态观察者
+    private var vpnStatusObserver: NSObjectProtocol?
 
-  // MARK: - Logging
+    // MARK: - 常量
 
-  private func nativeLog(_ message: String) {
-    NSLog("[KeepAlive] \(message)")
-    methodChannel?.invokeMethod("log", arguments: message)
-  }
+    /// VPN 配置描述名（唯一标识，避免重复创建）
+    private static let vpnConfigDescription = "GalaxyKeepAlive"
+    /// Extension Bundle ID
+    private static let extensionBundleID = "com.example.galaxyIos.tunnel"
 
-  // MARK: - MethodChannel Binding（由 SceneDelegate 在 Scene 激活后调用）
+    // MARK: - Logging
 
-  func bindMethodChannel(_ channel: FlutterMethodChannel) {
-    methodChannel = channel
-    channel.setMethodCallHandler { [weak self] (call, result) in
-      guard let self else { return }
-      self.nativeLog("收到 Flutter 调用: \(call.method)")
-      switch call.method {
-      case "enableKeepAlive":
-        self.enableKeepAlive()
-        result(true)
-      case "disableKeepAlive":
-        self.disableKeepAlive()
-        result(true)
-      case "isKeepAliveActive":
-        result(self.isKeepAliveEnabled)
-      default:
-        result(FlutterMethodNotImplemented)
-      }
+    private func nativeLog(_ message: String) {
+        NSLog("[KeepAlive] \(message)")
+        methodChannel?.invokeMethod("log", arguments: message)
     }
-    // 配置音频会话
-    configureAudioSession()
-    nativeLog("MethodChannel 绑定完成 ✅")
-  }
 
-  // MARK: - Application Lifecycle
+    // MARK: - MethodChannel Binding（由 SceneDelegate 在 Scene 激活后调用）
 
-  override func application(
-    _ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-  ) -> Bool {
-    if #available(iOS 10.0, *) {
-      UNUserNotificationCenter.current().delegate = self
+    func bindMethodChannel(_ channel: FlutterMethodChannel) {
+        methodChannel = channel
+        channel.setMethodCallHandler { [weak self] (call, result) in
+            guard let self else { return }
+            self.nativeLog("收到 Flutter 调用: \(call.method)")
+            switch call.method {
+            case "enableKeepAlive":
+                self.enableKeepAlive { success in
+                    result(success)
+                }
+            case "disableKeepAlive":
+                self.disableKeepAlive { success in
+                    result(success)
+                }
+            case "isKeepAliveActive":
+                result(self.isKeepAliveEnabled)
+            default:
+                result(FlutterMethodNotImplemented)
+            }
+        }
+        nativeLog("MethodChannel 绑定完成 ✅")
+        // 绑定后立即加载已有的 VPN 配置
+        loadExistingTunnelManager()
     }
-    GeneratedPluginRegistrant.register(with: self)
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
 
-  // MARK: - Scene 生命周期转发（由 SceneDelegate 调用）
+    // MARK: - Application Lifecycle
 
-  func handleEnterBackground() {
-    nativeLog("App 进入后台，保活已启用: \(isKeepAliveEnabled)")
-    guard isKeepAliveEnabled else { return }
-    startSilentAudio()
-  }
-
-  func handleEnterForeground() {
-    nativeLog("App 回到前台")
-    stopSilentAudio()
-  }
-
-  // MARK: - Keep Alive Control
-
-  private func enableKeepAlive() {
-    isKeepAliveEnabled = true
-    configureAudioSession()
-    nativeLog("✅ 保活已启用")
-  }
-
-  private func disableKeepAlive() {
-    isKeepAliveEnabled = false
-    stopSilentAudio()
-    nativeLog("❌ 保活已禁用")
-  }
-
-  // MARK: - Audio Session
-
-  private func configureAudioSession() {
-    do {
-      let session = AVAudioSession.sharedInstance()
-      try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-      try session.setActive(true)
-      // 监听音频中断（电话、其他 App 抢占等），中断结束后自动恢复播放
-      NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
-      NotificationCenter.default.addObserver(
-        self,
-        selector: #selector(handleAudioInterruption(_:)),
-        name: AVAudioSession.interruptionNotification,
-        object: session
-      )
-      nativeLog("音频会话配置成功（playback + mixWithOthers）")
-    } catch {
-      nativeLog("音频会话配置失败: \(error)")
+    override func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        if #available(iOS 10.0, *) {
+            UNUserNotificationCenter.current().delegate = self
+        }
+        GeneratedPluginRegistrant.register(with: self)
+        return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
-  }
 
-  /// 处理音频中断：电话结束、其他 App 释放音频后自动恢复静音播放
-  @objc private func handleAudioInterruption(_ notification: Notification) {
-    guard let userInfo = notification.userInfo,
-          let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
-          let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+    // MARK: - Scene 生命周期转发（由 SceneDelegate 调用）
 
-    if type == .ended {
-      // 中断结束，尝试重新激活音频会话并恢复播放
-      let optionValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
-      let options = AVAudioSession.InterruptionOptions(rawValue: optionValue)
-      if options.contains(.shouldResume) || optionValue == 0 {
-        nativeLog("音频中断结束，恢复静音播放")
+    func handleEnterBackground() {
+        nativeLog("App 进入后台，VPN 隧道状态: \(currentTunnelStatusDesc())")
+    }
+
+    func handleEnterForeground() {
+        nativeLog("App 回到前台，VPN 隧道状态: \(currentTunnelStatusDesc())")
+    }
+
+    // MARK: - Keep Alive Control
+
+    private func enableKeepAlive(completion: @escaping (Bool) -> Void) {
+        nativeLog("🔌 正在启用 VPN 隧道保活...")
+        isKeepAliveEnabled = true
+        setupAndStartTunnel(completion: completion)
+    }
+
+    private func disableKeepAlive(completion: @escaping (Bool) -> Void) {
+        nativeLog("🔌 正在停用 VPN 隧道保活...")
+        isKeepAliveEnabled = false
+        stopTunnel(completion: completion)
+    }
+
+    // MARK: - VPN 配置加载
+
+    /// 启动时尝试加载已有 VPN 配置（避免重复创建）
+    private func loadExistingTunnelManager() {
+        NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, error in
+            guard let self else { return }
+            if let error {
+                self.nativeLog("⚠️  加载已有 VPN 配置失败: \(error.localizedDescription)")
+                return
+            }
+            // 找到我们创建的配置
+            let existing = managers?.first {
+                $0.localizedDescription == Self.vpnConfigDescription
+            }
+            if let existing {
+                self.tunnelManager = existing
+                self.nativeLog("✅ 已加载现有 VPN 配置，当前状态: \(self.currentTunnelStatusDesc())")
+                // 恢复观察 VPN 状态
+                self.observeVPNStatus()
+            } else {
+                self.nativeLog("ℹ️  未找到已有 VPN 配置，将在首次启用时创建")
+            }
+        }
+    }
+
+    // MARK: - VPN 隧道建立
+
+    private func setupAndStartTunnel(completion: @escaping (Bool) -> Void) {
+        // 先尝试加载已有配置
+        NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, error in
+            guard let self else { return }
+
+            if let error {
+                self.nativeLog("❌ 加载 VPN 配置失败: \(error.localizedDescription)")
+                completion(false)
+                return
+            }
+
+            // 复用已有配置 or 新建
+            let manager = managers?.first {
+                $0.localizedDescription == Self.vpnConfigDescription
+            } ?? NETunnelProviderManager()
+
+            // 配置 Protocol
+            let proto = NETunnelProviderProtocol()
+            proto.providerBundleIdentifier = Self.extensionBundleID
+            proto.serverAddress = "127.0.0.1"  // 伪服务器地址（本地回环，不真实连接）
+            proto.disconnectOnSleep = false      // 设备睡眠时不断开
+
+            manager.protocolConfiguration = proto
+            manager.localizedDescription = Self.vpnConfigDescription
+            manager.isEnabled = true
+
+            self.nativeLog("💾 正在保存 VPN 配置到系统偏好...")
+
+            manager.saveToPreferences { [weak self] error in
+                guard let self else { return }
+
+                if let error {
+                    self.nativeLog("❌ 保存 VPN 配置失败: \(error.localizedDescription)")
+                    completion(false)
+                    return
+                }
+
+                self.nativeLog("✅ VPN 配置保存成功，正在加载并启动隧道...")
+                self.tunnelManager = manager
+
+                // 必须 reload 后再 start（iOS 要求）
+                manager.loadFromPreferences { [weak self] error in
+                    guard let self else { return }
+
+                    if let error {
+                        self.nativeLog("❌ 重新加载 VPN 配置失败: \(error.localizedDescription)")
+                        completion(false)
+                        return
+                    }
+
+                    self.observeVPNStatus()
+                    self.startVPNConnection(manager: manager, completion: completion)
+                }
+            }
+        }
+    }
+
+    private func startVPNConnection(manager: NETunnelProviderManager, completion: @escaping (Bool) -> Void) {
         do {
-          try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-          nativeLog("重新激活音频会话失败: \(error)")
+            nativeLog("🚀 正在调用 startVPNTunnel...")
+            try manager.connection.startVPNTunnel()
+            nativeLog("✅ startVPNTunnel 调用成功，等待隧道建立...")
+            completion(true)
+        } catch let error as NSError {
+            nativeLog("❌ startVPNTunnel 失败: \(error.localizedDescription) (domain=\(error.domain) code=\(error.code))")
+            completion(false)
         }
-        if isKeepAliveEnabled {
-          audioPlayer?.play()
+    }
+
+    // MARK: - VPN 隧道停止
+
+    private func stopTunnel(completion: @escaping (Bool) -> Void) {
+        guard let manager = tunnelManager else {
+            nativeLog("ℹ️  无活跃的 VPN 配置，无需停止")
+            completion(true)
+            return
         }
-      }
-    } else {
-      nativeLog("音频中断开始（电话/其他 App）")
+
+        let status = manager.connection.status
+        nativeLog("🛑 正在停止 VPN 隧道，当前状态: \(describeStatus(status))")
+
+        if status == .disconnected || status == .disconnecting {
+            nativeLog("ℹ️  隧道已处于断开状态，跳过")
+            completion(true)
+            return
+        }
+
+        manager.connection.stopVPNTunnel()
+        nativeLog("✅ stopVPNTunnel 调用完成")
+        completion(true)
     }
-  }
 
-  // MARK: - Silent Audio
+    // MARK: - VPN 状态观察
 
-  private func startSilentAudio() {
-    guard audioPlayer == nil else {
-      nativeLog("静音音频已在播放中，跳过重复启动")
-      return
+    private func observeVPNStatus() {
+        // 移除旧观察者
+        if let obs = vpnStatusObserver {
+            NotificationCenter.default.removeObserver(obs)
+        }
+
+        vpnStatusObserver = NotificationCenter.default.addObserver(
+            forName: .NEVPNStatusDidChange,
+            object: tunnelManager?.connection,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self, let connection = self.tunnelManager?.connection else { return }
+            let status = connection.status
+            self.nativeLog("📶 VPN 状态变化 → \(self.describeStatus(status))")
+
+            // 如果意外断开且保活开关仍开启，自动重连
+            if status == .disconnected && self.isKeepAliveEnabled {
+                self.nativeLog("⚡ 隧道意外断开，3 秒后自动重连...")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                    guard let self, self.isKeepAliveEnabled else { return }
+                    self.nativeLog("🔄 正在执行自动重连...")
+                    self.startVPNConnection(manager: connection.manager as! NETunnelProviderManager) { success in
+                        self.nativeLog("🔄 自动重连结果: \(success ? "✅ 成功" : "❌ 失败")")
+                    }
+                }
+            }
+        }
+
+        nativeLog("👁️  VPN 状态观察者已注册")
     }
-    guard let url = Bundle.main.url(forResource: "silence", withExtension: "aac") else {
-      nativeLog("❌ 未找到 silence.aac，请确保文件已加入 Xcode Bundle Resources")
-      return
+
+    // MARK: - 工具方法
+
+    private func currentTunnelStatusDesc() -> String {
+        guard let manager = tunnelManager else { return "无配置" }
+        return describeStatus(manager.connection.status)
     }
-    do {
-      audioPlayer = try AVAudioPlayer(contentsOf: url)
-      audioPlayer?.numberOfLoops = -1  // 无限循环
-      audioPlayer?.volume = 0.0
-      let success = audioPlayer?.play() ?? false
-      nativeLog("静音音频启动: \(success ? "✅ 成功" : "❌ 失败")")
-    } catch {
-      nativeLog("静音音频异常: \(error)")
+
+    private func describeStatus(_ status: NEVPNStatus) -> String {
+        switch status {
+        case .invalid:      return "invalid（配置无效）"
+        case .disconnected: return "disconnected（已断开）"
+        case .connecting:   return "connecting（连接中）"
+        case .connected:    return "connected（已连接）✅"
+        case .reasserting:  return "reasserting（重新建立中）"
+        case .disconnecting: return "disconnecting（断开中）"
+        @unknown default:   return "unknown(\(status.rawValue))"
+        }
     }
-  }
 
-  private func stopSilentAudio() {
-    audioPlayer?.stop()
-    audioPlayer = nil
-    nativeLog("静音音频已停止")
-  }
+    // MARK: - UNUserNotificationCenterDelegate
 
-  // MARK: - UNUserNotificationCenterDelegate
-
-  @available(iOS 10.0, *)
-  override func userNotificationCenter(
-    _ center: UNUserNotificationCenter,
-    willPresent notification: UNNotification,
-    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-  ) {
-    completionHandler([.banner, .list, .sound, .badge])
-  }
+    @available(iOS 10.0, *)
+    override func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound, .badge])
+    }
 }
