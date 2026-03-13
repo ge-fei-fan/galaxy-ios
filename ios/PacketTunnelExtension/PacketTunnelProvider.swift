@@ -134,7 +134,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         case .configurationFailed: return "配置失败"
         case .idleTimeout:        return "空闲超时"
         case .configurationDisabled: return "配置被禁用"
-        case .sleeping:           return "设备进入睡眠"
         case .appUpdate:          return "App 更新"
         @unknown default:         return "未知原因(\(reason.rawValue))"
         }
