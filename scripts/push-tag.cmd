@@ -30,7 +30,7 @@ if !errorlevel! neq 0 (
 )
 
 echo.
-echo ===== 推送结果 =====
+echo ===== 推送结果1 =====
 git ls-remote --tags origin "%TAG%"
 echo ==================
 echo.
