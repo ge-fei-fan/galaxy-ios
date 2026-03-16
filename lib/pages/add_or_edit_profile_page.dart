@@ -103,92 +103,105 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
       appBar: AppBar(
         title: Text(isEdit ? '编辑配置' : '新增配置'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: '配置名称',
-                border: OutlineInputBorder(),
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            children: [
+              TextField(
+                controller: _nameController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: '配置名称',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _remarkController,
-              decoration: const InputDecoration(
-                labelText: '备注',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _remarkController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: '备注',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _hostController,
-              decoration: const InputDecoration(
-                labelText: 'Broker 地址',
-                hintText: 'test.mosquitto.org',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _hostController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Broker 地址',
+                  hintText: 'test.mosquitto.org',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _portController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: '端口',
-                hintText: '1883',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _portController,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: '端口',
+                  hintText: '1883',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _clientIdController,
-              decoration: const InputDecoration(
-                labelText: 'Client ID',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _clientIdController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Client ID',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              value: _useTls,
-              onChanged: (value) => setState(() => _useTls = value),
-              title: const Text('启用 TLS'),
-            ),
-            SwitchListTile(
-              value: _keepAliveInBackground,
-              onChanged: (value) =>
-                  setState(() => _keepAliveInBackground = value),
-              title: const Text('iOS 后台保活'),
-              subtitle: const Text('开启后进入后台继续接收消息'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(
-                labelText: '用户名（可选）',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                value: _useTls,
+                onChanged: (value) => setState(() => _useTls = value),
+                title: const Text('启用 TLS'),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: '密码（可选）',
-                border: OutlineInputBorder(),
+              SwitchListTile(
+                value: _keepAliveInBackground,
+                onChanged: (value) =>
+                    setState(() => _keepAliveInBackground = value),
+                title: const Text('iOS 后台保活'),
+                subtitle: const Text('开启后进入后台继续接收消息'),
               ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _save,
-                icon: const Icon(Icons.save),
-                label: const Text('保存'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _usernameController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: '用户名（可选）',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                decoration: const InputDecoration(
+                  labelText: '密码（可选）',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _save,
+                  icon: const Icon(Icons.save),
+                  label: const Text('保存'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

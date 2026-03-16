@@ -28,15 +28,18 @@ void main() {
   });
 
   tearDownAll(() async {
-    await Hive.close();
-    if (hiveTestDir.existsSync()) {
-      await hiveTestDir.delete(recursive: true);
-    }
+    // Windows 下 Hive 关箱/删除目录偶发卡住，导致测试超时。
+    // 这里尽量触发关闭，但不 await、不删除目录，避免 tearDownAll 超时。
+    Hive.close();
   });
 
   testWidgets('App boot smoke test', (WidgetTester tester) async {
     // 仅做启动冒烟测试：能正常构建并出现标题即可。
     await tester.pumpWidget(const MqttApp());
+
+    // App 启动过程中 controller.initialize() 内部有一个 500ms 的延迟 timer，
+    // 测试环境会检测“残留 timer”。这里主动推进时间，让该 timer 执行完毕。
+    await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('MQTT'), findsWidgets);

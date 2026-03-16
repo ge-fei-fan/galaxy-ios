@@ -57,63 +57,79 @@ class _TopicsTabState extends State<_TopicsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '订阅主题',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _topicController,
-                  decoration: const InputDecoration(
-                    labelText: '输入主题',
-                    border: OutlineInputBorder(),
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '订阅主题',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _topicController,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) {
+                      widget.controller.addTopic(_topicController.text);
+                      _topicController.clear();
+                      FocusScope.of(context).unfocus();
+                      setState(() {});
+                    },
+                    decoration: const InputDecoration(
+                      labelText: '输入主题',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: () {
-                  widget.controller.addTopic(_topicController.text);
-                  _topicController.clear();
-                },
-                child: const Text('添加'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: widget.controller.topics.isEmpty
-                ? const Center(child: Text('暂无订阅主题'))
-                : ListView.builder(
-                    itemCount: widget.controller.topics.length,
-                    itemBuilder: (context, index) {
-                      final topic = widget.controller.topics[index];
-                      final messageCount =
-                          widget.controller.messagesByTopic[topic]?.length ?? 0;
-                      return Card(
-                        child: ListTile(
-                          title: Text(topic),
-                          subtitle: Text('历史消息: $messageCount'),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () =>
-                                widget.controller.removeTopic(topic),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    widget.controller.addTopic(_topicController.text);
+                    _topicController.clear();
+                    FocusScope.of(context).unfocus();
+                    setState(() {});
+                  },
+                  child: const Text('添加'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: widget.controller.topics.isEmpty
+                  ? const Center(child: Text('暂无订阅主题'))
+                  : ListView.builder(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      itemCount: widget.controller.topics.length,
+                      itemBuilder: (context, index) {
+                        final topic = widget.controller.topics[index];
+                        final messageCount =
+                            widget.controller.messagesByTopic[topic]?.length ??
+                                0;
+                        return Card(
+                          child: ListTile(
+                            title: Text(topic),
+                            subtitle: Text('历史消息: $messageCount'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () =>
+                                  widget.controller.removeTopic(topic),
+                            ),
+                            onTap: () => widget.controller.selectTopic(topic),
                           ),
-                          onTap: () => widget.controller.selectTopic(topic),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
