@@ -2,13 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:mqtt_client/mqtt_client.dart';
-import 'package:mqtt_client/mqtt_server_client.dart';
 
-import 'package:galaxy_ios/widgets/ios_wechat_tab_bar.dart';
+import 'package:galaxy_ios/controllers/mqtt_controller.dart';
+import 'package:galaxy_ios/pages/add_or_edit_profile_page.dart';
+import 'package:galaxy_ios/pages/profiles_page.dart';
+import 'package:galaxy_ios/pages/receive_page.dart';
+import 'package:galaxy_ios/pages/send_page.dart';
+import 'package:galaxy_ios/widgets/ios_plus_tab_bar.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +17,7 @@ Future<void> main() async {
   await Hive.openBox('settings');
   await Hive.openBox('topics');
   await Hive.openBox('messages');
+  await Hive.openBox('profiles');
   runApp(const MqttApp());
 }
 
@@ -59,7 +61,7 @@ class _MqttAppState extends State<MqttApp> {
           ),
           home: Scaffold(
             appBar: AppBar(
-              title: const Text('MQTT 客户端 (iOS)'),
+              title: const Text('MQTT 客户端'),
               backgroundColor: Theme.of(context).colorScheme.surface,
               foregroundColor: Theme.of(context).colorScheme.onSurface,
             ),
@@ -67,34 +69,36 @@ class _MqttAppState extends State<MqttApp> {
                 ? IndexedStack(
                     index: _currentIndex,
                     children: [
-                      ConfigPage(controller: _controller),
-                      TopicsPage(controller: _controller),
-                      MessagesPage(controller: _controller),
+                      SendPage(controller: _controller),
+                      ReceivePage(controller: _controller),
+                      ProfilesPage(controller: _controller),
                     ],
                   )
                 : const Center(child: CircularProgressIndicator()),
             bottomNavigationBar: useIosWechatStyle
-                ? IosWechatTabBar(
+                ? IosPlusTabBar(
                     currentIndex: _currentIndex,
                     onTap: (index) => setState(() => _currentIndex = index),
+                    onPlusTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              AddOrEditProfilePage(controller: _controller),
+                        ),
+                      );
+                    },
                   )
-                : BottomNavigationBar(
+                : _MaterialPlusTabBar(
                     currentIndex: _currentIndex,
                     onTap: (index) => setState(() => _currentIndex = index),
-                    items: const [
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.settings),
-                        label: '配置',
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.list_alt),
-                        label: '主题',
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.message),
-                        label: '消息',
-                      ),
-                    ],
+                    onPlusTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              AddOrEditProfilePage(controller: _controller),
+                        ),
+                      );
+                    },
                   ),
           ),
         );
@@ -102,6 +106,81 @@ class _MqttAppState extends State<MqttApp> {
     );
   }
 }
+
+class _MaterialPlusTabBar extends StatelessWidget {
+  const _MaterialPlusTabBar({
+    required this.currentIndex,
+    required this.onTap,
+    required this.onPlusTap,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  final VoidCallback onPlusTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return BottomAppBar(
+      height: 64,
+      padding: EdgeInsets.zero,
+      child: Row(
+        children: [
+          Expanded(
+            child: IconButton(
+              onPressed: () => onTap(0),
+              icon: Icon(
+                Icons.send,
+                color: currentIndex == 0
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: IconButton(
+              onPressed: () => onTap(1),
+              icon: Icon(
+                Icons.inbox,
+                color: currentIndex == 1
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 72,
+            child: Center(
+              child: FloatingActionButton(
+                onPressed: onPlusTap,
+                child: const Icon(Icons.add),
+              ),
+            ),
+          ),
+          Expanded(
+            child: IconButton(
+              onPressed: () => onTap(2),
+              icon: Icon(
+                Icons.person,
+                color: currentIndex == 2
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/*
+以下为旧版实现（已弃用）：
+- MqttConfig / MqttMessageEntry / NotificationService
+- 旧版 MqttController
+- ConfigPage / TopicsPage / MessagesPage
+
+为避免与当前的新架构（lib/controllers、lib/models、lib/pages）发生命名冲突，
+这段代码已整体注释。确认一切功能正常后，可直接删除该注释块。
 
 class MqttConfig {
   const MqttConfig({
@@ -1040,3 +1119,5 @@ class MessagesPage extends StatelessWidget {
     );
   }
 }
+
+*/

@@ -1,0 +1,196 @@
+import 'package:flutter/material.dart';
+
+import 'package:galaxy_ios/controllers/mqtt_controller.dart';
+import 'package:galaxy_ios/models/mqtt_profile.dart';
+
+class AddOrEditProfilePage extends StatefulWidget {
+  const AddOrEditProfilePage({
+    super.key,
+    required this.controller,
+    this.initial,
+  });
+
+  final MqttController controller;
+  final MqttProfile? initial;
+
+  @override
+  State<AddOrEditProfilePage> createState() => _AddOrEditProfilePageState();
+}
+
+class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _remarkController;
+  late final TextEditingController _hostController;
+  late final TextEditingController _portController;
+  late final TextEditingController _clientIdController;
+  late final TextEditingController _usernameController;
+  late final TextEditingController _passwordController;
+  bool _useTls = false;
+  bool _keepAliveInBackground = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.initial;
+    _nameController = TextEditingController(text: p?.name ?? '');
+    _remarkController = TextEditingController(text: p?.remark ?? '');
+    _hostController =
+        TextEditingController(text: p?.host ?? 'test.mosquitto.org');
+    _portController = TextEditingController(text: (p?.port ?? 1883).toString());
+    _clientIdController =
+        TextEditingController(text: p?.clientId ?? 'flutter_mqtt_client');
+    _usernameController = TextEditingController(text: p?.username ?? '');
+    _passwordController = TextEditingController(text: p?.password ?? '');
+    _useTls = p?.useTls ?? false;
+    _keepAliveInBackground = p?.keepAliveInBackground ?? false;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _remarkController.dispose();
+    _hostController.dispose();
+    _portController.dispose();
+    _clientIdController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
+
+  Future<void> _save() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('配置名称不能为空')),
+      );
+      return;
+    }
+    final port = int.tryParse(_portController.text.trim()) ?? 1883;
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
+
+    final profile = MqttProfile(
+      id: widget.initial?.id ?? _newId(),
+      name: name,
+      remark: _remarkController.text.trim(),
+      host: _hostController.text.trim(),
+      port: port,
+      useTls: _useTls,
+      clientId: _clientIdController.text.trim().isEmpty
+          ? 'flutter_mqtt_client'
+          : _clientIdController.text.trim(),
+      username: username.isEmpty ? null : username,
+      password: password.isEmpty ? null : password,
+      keepAliveInBackground: _keepAliveInBackground,
+    );
+
+    if (widget.initial == null) {
+      await widget.controller.addProfile(profile);
+    } else {
+      await widget.controller.updateProfile(profile);
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEdit = widget.initial != null;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isEdit ? '编辑配置' : '新增配置'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: '配置名称',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _remarkController,
+              decoration: const InputDecoration(
+                labelText: '备注',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _hostController,
+              decoration: const InputDecoration(
+                labelText: 'Broker 地址',
+                hintText: 'test.mosquitto.org',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _portController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: '端口',
+                hintText: '1883',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _clientIdController,
+              decoration: const InputDecoration(
+                labelText: 'Client ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SwitchListTile(
+              value: _useTls,
+              onChanged: (value) => setState(() => _useTls = value),
+              title: const Text('启用 TLS'),
+            ),
+            SwitchListTile(
+              value: _keepAliveInBackground,
+              onChanged: (value) =>
+                  setState(() => _keepAliveInBackground = value),
+              title: const Text('iOS 后台保活'),
+              subtitle: const Text('开启后进入后台继续接收消息'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _usernameController,
+              decoration: const InputDecoration(
+                labelText: '用户名（可选）',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: '密码（可选）',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.save),
+                label: const Text('保存'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
