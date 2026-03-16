@@ -31,6 +31,7 @@ class MqttApp extends StatefulWidget {
 class _MqttAppState extends State<MqttApp> {
   late final MqttController _controller;
   int _currentIndex = 0;
+  final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _MqttAppState extends State<MqttApp> {
         final useIosWechatStyle =
             !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
         return MaterialApp(
+          navigatorKey: _navKey,
           title: 'MQTT 客户端',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
@@ -80,7 +82,7 @@ class _MqttAppState extends State<MqttApp> {
                     currentIndex: _currentIndex,
                     onTap: (index) => setState(() => _currentIndex = index),
                     onPlusTap: () async {
-                      await Navigator.of(context).push(
+                      await _navKey.currentState?.push(
                         MaterialPageRoute(
                           builder: (_) =>
                               AddOrEditProfilePage(controller: _controller),
@@ -92,7 +94,7 @@ class _MqttAppState extends State<MqttApp> {
                     currentIndex: _currentIndex,
                     onTap: (index) => setState(() => _currentIndex = index),
                     onPlusTap: () async {
-                      await Navigator.of(context).push(
+                      await _navKey.currentState?.push(
                         MaterialPageRoute(
                           builder: (_) =>
                               AddOrEditProfilePage(controller: _controller),
