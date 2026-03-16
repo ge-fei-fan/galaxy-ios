@@ -1,12 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
+
+import 'package:galaxy_ios/widgets/ios_wechat_tab_bar.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +48,9 @@ class _MqttAppState extends State<MqttApp> {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
+        // 仅 iOS 生效；避免引入 dart:io 导致 Web 构建失败。
+        final useIosWechatStyle =
+            !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
         return MaterialApp(
           title: 'MQTT 客户端',
           theme: ThemeData(
@@ -68,24 +73,29 @@ class _MqttAppState extends State<MqttApp> {
                     ],
                   )
                 : const Center(child: CircularProgressIndicator()),
-            bottomNavigationBar: BottomNavigationBar(
-              currentIndex: _currentIndex,
-              onTap: (index) => setState(() => _currentIndex = index),
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.settings),
-                  label: '配置',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.list_alt),
-                  label: '主题',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.message),
-                  label: '消息',
-                ),
-              ],
-            ),
+            bottomNavigationBar: useIosWechatStyle
+                ? IosWechatTabBar(
+                    currentIndex: _currentIndex,
+                    onTap: (index) => setState(() => _currentIndex = index),
+                  )
+                : BottomNavigationBar(
+                    currentIndex: _currentIndex,
+                    onTap: (index) => setState(() => _currentIndex = index),
+                    items: const [
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.settings),
+                        label: '配置',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.list_alt),
+                        label: '主题',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.message),
+                        label: '消息',
+                      ),
+                    ],
+                  ),
           ),
         );
       },
@@ -400,8 +410,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
 
     final connectMessage = MqttConnectMessage()
         .withClientIdentifier(config.clientId)
-        .startClean()
-        .keepAliveFor(20);
+        .startClean();
 
     if ((config.username ?? '').isNotEmpty) {
       connectMessage.authenticateAs(config.username!, config.password ?? '');
@@ -992,7 +1001,7 @@ class MessagesPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: selected,
+            initialValue: selected,
             items: controller.topics
                 .map((topic) => DropdownMenuItem(
                       value: topic,
@@ -1013,7 +1022,8 @@ class MessagesPage extends StatelessWidget {
                     ? const Center(child: Text('暂无消息'))
                     : ListView.separated(
                         itemCount: messages.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final message = messages[index];
                           return ListTile(
