@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:galaxy_ios/controllers/mqtt_controller.dart';
 import 'package:galaxy_ios/models/mqtt_profile.dart';
 import 'package:galaxy_ios/pages/add_or_edit_profile_page.dart';
+import 'package:galaxy_ios/pages/mqtt_detail_page.dart';
 
 class ProfilesPage extends StatelessWidget {
   const ProfilesPage({super.key, required this.controller});
@@ -15,6 +16,25 @@ class ProfilesPage extends StatelessWidget {
         builder: (_) => AddOrEditProfilePage(
           controller: controller,
           initial: profile,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openAdd(BuildContext context) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AddOrEditProfilePage(controller: controller),
+      ),
+    );
+  }
+
+  Future<void> _openDetail(BuildContext context, MqttProfile profile) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MqttDetailPage(
+          controller: controller,
+          profile: profile,
         ),
       ),
     );
@@ -36,81 +56,91 @@ class ProfilesPage extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
-              if (active != null)
-                Chip(
-                  label: Text(controller.connected ? '已连接' : '未连接'),
-                  backgroundColor: controller.connected
-                      ? Colors.green.shade50
-                      : Colors.orange.shade50,
-                  side: BorderSide(
-                    color: controller.connected
-                        ? Colors.green.shade200
-                        : Colors.orange.shade200,
-                  ),
-                ),
+              IconButton(
+                tooltip: '新增配置',
+                onPressed: () => _openAdd(context),
+                icon: const Icon(Icons.add_circle_outline),
+              ),
+              // if (active != null)
+              //   Chip(
+              //     label: Text(controller.connected ? '已连接' : '未连接'),
+              //     backgroundColor: controller.connected
+              //         ? Colors.green.shade50
+              //         : Colors.orange.shade50,
+              //     side: BorderSide(
+              //       color: controller.connected
+              //           ? Colors.green.shade200
+              //           : Colors.orange.shade200,
+              //     ),
+              //   ),
             ],
           ),
           const SizedBox(height: 12),
           if (active != null)
             Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '当前：${active.name}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _openDetail(context, active),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: controller.connected
+                                  ? Colors.green
+                                  : Colors.grey.shade400,
+                              shape: BoxShape.circle,
                             ),
                           ),
-                        ),
-                        IconButton(
-                          tooltip: '编辑当前配置',
-                          onPressed: () => _openEdit(context, active),
-                          icon: const Icon(Icons.edit_outlined),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '当前：${active.name}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: '连接',
+                            onPressed: controller.connected
+                                ? null
+                                : () => controller.connectProfile(active.id),
+                            icon: const Icon(Icons.link),
+                          ),
+                          IconButton(
+                            tooltip: '断开',
+                            onPressed: controller.connected
+                                ? controller.disconnect
+                                : null,
+                            icon: const Icon(Icons.link_off),
+                          ),
+                        ],
+                      ),
+                      if (active.remark.trim().isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          active.remark,
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
-                    ),
-                    if (active.remark.trim().isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
+                      Text('${active.host}:${active.port}'),
+                      const SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
-                        active.remark,
+                        controller.status,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
-                    const SizedBox(height: 6),
-                    Text('${active.host}:${active.port}'),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: controller.connected
-                              ? null
-                              : controller.connect,
-                          icon: const Icon(Icons.link),
-                          label: const Text('连接'),
-                        ),
-                        const SizedBox(width: 12),
-                        OutlinedButton.icon(
-                          onPressed: controller.connected
-                              ? controller.disconnect
-                              : null,
-                          icon: const Icon(Icons.link_off),
-                          label: const Text('断开'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      controller.status,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -143,8 +173,8 @@ class ProfilesPage extends StatelessWidget {
                         '${p.host}:${p.port}',
                       ].join(' · '),
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    trailing: Wrap(
+                      spacing: 4,
                       children: [
                         IconButton(
                           tooltip: '编辑',

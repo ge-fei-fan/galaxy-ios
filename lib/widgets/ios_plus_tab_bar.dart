@@ -27,7 +27,7 @@ class IosPlusTabBar extends StatelessWidget {
   static const double _bottomGap = 12;
 
   static const double _plusSize = 58;
-  static const double _plusLift = 16;
+  static const double _plusLift = 8;
 
   @override
   Widget build(BuildContext context) {

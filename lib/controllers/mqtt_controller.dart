@@ -311,6 +311,15 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  Future<void> connectProfile(String id) async {
+    if (activeProfileId == id && connected) return;
+    if (connected) {
+      disconnect();
+    }
+    await selectProfile(id);
+    await connect();
+  }
+
   void disconnect() {
     _isExplicitDisconnect = true;
     _reconnectTimer?.cancel();

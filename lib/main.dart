@@ -5,12 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:galaxy_ios/controllers/mqtt_controller.dart';
-import 'package:galaxy_ios/pages/add_or_edit_profile_page.dart';
+import 'package:galaxy_ios/pages/home_page.dart';
+import 'package:galaxy_ios/pages/placeholder_page.dart';
 import 'package:galaxy_ios/pages/profiles_page.dart';
-import 'package:galaxy_ios/pages/receive_page.dart';
-import 'package:galaxy_ios/pages/send_page.dart';
 import 'package:galaxy_ios/pages/settings_page.dart';
-import 'package:galaxy_ios/widgets/ios_plus_tab_bar.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,53 +55,33 @@ class _MqttAppState extends State<MqttApp> {
             !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
         return MaterialApp(
           navigatorKey: _navKey,
-          title: 'MQTT 客户端',
+          // title: 'MQTT 客户端',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
             useMaterial3: true,
           ),
           home: Scaffold(
-            appBar: AppBar(
-              title: const Text('MQTT 客户端'),
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              foregroundColor: Theme.of(context).colorScheme.onSurface,
-            ),
+            // appBar: AppBar(
+            //   title: const Text('MQTT 客户端'),
+            //   backgroundColor: Theme.of(context).colorScheme.surface,
+            //   foregroundColor: Theme.of(context).colorScheme.onSurface,
+            // ),
             body: _controller.initialized
                 ? IndexedStack(
                     index: _currentIndex,
                     children: [
-                      SendPage(controller: _controller),
-                      ReceivePage(controller: _controller),
+                      const HomePage(),
+                      const PlaceholderPage(),
                       ProfilesPage(controller: _controller),
                       SettingsPage(controller: _controller),
                     ],
                   )
                 : const Center(child: CircularProgressIndicator()),
-            bottomNavigationBar: useIosWechatStyle
-                ? IosPlusTabBar(
-                    currentIndex: _currentIndex,
-                    onTap: (index) => setState(() => _currentIndex = index),
-                    onPlusTap: () async {
-                      await _navKey.currentState?.push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              AddOrEditProfilePage(controller: _controller),
-                        ),
-                      );
-                    },
-                  )
-                : _MaterialPlusTabBar(
-                    currentIndex: _currentIndex,
-                    onTap: (index) => setState(() => _currentIndex = index),
-                    onPlusTap: () async {
-                      await _navKey.currentState?.push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              AddOrEditProfilePage(controller: _controller),
-                        ),
-                      );
-                    },
-                  ),
+            bottomNavigationBar: _MainTabBar(
+              useIosStyle: useIosWechatStyle,
+              currentIndex: _currentIndex,
+              onTap: (index) => setState(() => _currentIndex = index),
+            ),
           ),
         );
       },
@@ -111,19 +89,21 @@ class _MqttAppState extends State<MqttApp> {
   }
 }
 
-class _MaterialPlusTabBar extends StatelessWidget {
-  const _MaterialPlusTabBar({
+class _MainTabBar extends StatelessWidget {
+  const _MainTabBar({
     required this.currentIndex,
     required this.onTap,
-    required this.onPlusTap,
+    required this.useIosStyle,
   });
 
   final int currentIndex;
   final ValueChanged<int> onTap;
-  final VoidCallback onPlusTap;
+  final bool useIosStyle;
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = Theme.of(context).colorScheme.primary;
+    final inactiveColor = Colors.grey;
     return BottomAppBar(
       height: 64,
       padding: EdgeInsets.zero,
@@ -131,54 +111,41 @@ class _MaterialPlusTabBar extends StatelessWidget {
         children: [
           Expanded(
             child: IconButton(
+              tooltip: 'Home',
               onPressed: () => onTap(0),
               icon: Icon(
-                Icons.send,
-                color: currentIndex == 0
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey,
+                useIosStyle ? Icons.home_filled : Icons.home_outlined,
+                color: currentIndex == 0 ? activeColor : inactiveColor,
               ),
             ),
           ),
           Expanded(
             child: IconButton(
+              tooltip: '预留',
               onPressed: () => onTap(1),
               icon: Icon(
-                Icons.inbox,
-                color: currentIndex == 1
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 84,
-            child: Center(
-              child: FloatingActionButton(
-                onPressed: onPlusTap,
-                child: const Icon(Icons.add),
+                Icons.grid_view_rounded,
+                color: currentIndex == 1 ? activeColor : inactiveColor,
               ),
             ),
           ),
           Expanded(
             child: IconButton(
+              tooltip: 'MQTT',
               onPressed: () => onTap(2),
               icon: Icon(
-                Icons.tune,
-                color: currentIndex == 2
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey,
+                Icons.cloud_done_outlined,
+                color: currentIndex == 2 ? activeColor : inactiveColor,
               ),
             ),
           ),
           Expanded(
             child: IconButton(
+              tooltip: '设置',
               onPressed: () => onTap(3),
               icon: Icon(
-                Icons.settings,
-                color: currentIndex == 3
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey,
+                Icons.settings_outlined,
+                color: currentIndex == 3 ? activeColor : inactiveColor,
               ),
             ),
           ),
