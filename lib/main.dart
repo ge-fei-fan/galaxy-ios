@@ -90,14 +90,6 @@ class _MqttAppState extends State<MqttApp> {
                         ),
                       );
                     },
-                    onSettingsTap: () async {
-                      await _navKey.currentState?.push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              SettingsPage(controller: _controller),
-                        ),
-                      );
-                    },
                   )
                 : _MaterialPlusTabBar(
                     currentIndex: _currentIndex,
