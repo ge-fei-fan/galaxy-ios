@@ -105,7 +105,7 @@ class SettingsPage extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () => _showDebugLogs(context),
                 icon: const Icon(Icons.bug_report_outlined),
-                label: const Text('日志'),
+                label: const Text('查看日志'),
               ),
             ),
           ],

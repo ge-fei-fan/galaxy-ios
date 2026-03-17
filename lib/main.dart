@@ -75,6 +75,7 @@ class _MqttAppState extends State<MqttApp> {
                       SendPage(controller: _controller),
                       ReceivePage(controller: _controller),
                       ProfilesPage(controller: _controller),
+                      SettingsPage(controller: _controller),
                     ],
                   )
                 : const Center(child: CircularProgressIndicator()),
@@ -151,7 +152,7 @@ class _MaterialPlusTabBar extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 72,
+            width: 84,
             child: Center(
               child: FloatingActionButton(
                 onPressed: onPlusTap,
@@ -163,8 +164,19 @@ class _MaterialPlusTabBar extends StatelessWidget {
             child: IconButton(
               onPressed: () => onTap(2),
               icon: Icon(
-                Icons.person,
+                Icons.tune,
                 color: currentIndex == 2
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: IconButton(
+              onPressed: () => onTap(3),
+              icon: Icon(
+                Icons.settings,
+                color: currentIndex == 3
                     ? Theme.of(context).colorScheme.primary
                     : Colors.grey,
               ),

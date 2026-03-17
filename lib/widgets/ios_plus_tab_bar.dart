@@ -26,8 +26,8 @@ class IosPlusTabBar extends StatelessWidget {
   static const double _sidePadding = 16;
   static const double _bottomGap = 12;
 
-  static const double _plusSize = 68;
-  static const double _plusLift = 18;
+  static const double _plusSize = 58;
+  static const double _plusLift = 16;
 
   @override
   Widget build(BuildContext context) {
@@ -95,12 +95,19 @@ class IosPlusTabBar extends StatelessWidget {
                                 ),
                               ),
                               // 给中间 + 预留空间
-                              const SizedBox(width: 86),
+                              const SizedBox(width: 110),
                               Expanded(
                                 child: _Item(
                                   selected: currentIndex == 2,
-                                  icon: CupertinoIcons.person,
+                                  icon: CupertinoIcons.slider_horizontal_3,
                                   onTap: () => onTap(2),
+                                ),
+                              ),
+                              Expanded(
+                                child: _Item(
+                                  selected: currentIndex == 3,
+                                  icon: CupertinoIcons.gear,
+                                  onTap: () => onTap(3),
                                 ),
                               ),
                             ],
