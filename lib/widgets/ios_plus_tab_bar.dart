@@ -21,6 +21,14 @@ class IosPlusTabBar extends StatelessWidget {
   static const _activeColor = Color(0xFF0A63FF);
   static const _inactiveColor = Color(0xFF8E8E93);
 
+  static const double _barHeight = 64;
+  static const double _barRadius = 64;
+  static const double _sidePadding = 16;
+  static const double _bottomGap = 12;
+
+  static const double _plusSize = 68;
+  static const double _plusLift = 18;
+
   @override
   Widget build(BuildContext context) {
     final backgroundColor =
@@ -29,75 +37,133 @@ class IosPlusTabBar extends StatelessWidget {
 
     return SafeArea(
       top: false,
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: backgroundColor,
-              border: const Border(
-                top: BorderSide(color: Color(0x1F000000), width: 0.5),
-              ),
-            ),
-            child: SizedBox(
-              height: 62,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _Item(
-                      selected: currentIndex == 0,
-                      icon: CupertinoIcons.paperplane,
-                      onTap: () => onTap(0),
-                    ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: _sidePadding)
+            .copyWith(bottom: _bottomGap),
+        child: SizedBox(
+          height: _barHeight + _plusLift,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.bottomCenter,
+            children: [
+              // 悬浮毛玻璃卡片底栏
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: DecoratedBox(
+                  // 注意：阴影必须在 ClipRRect 外层，否则会被裁剪掉，看起来就不“悬浮”。
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(_barRadius),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x24000000),
+                        blurRadius: 28,
+                        offset: Offset(0, 14),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: _Item(
-                      selected: currentIndex == 1,
-                      icon: CupertinoIcons.tray,
-                      onTap: () => onTap(1),
-                    ),
-                  ),
-                  // 中间 +
-                  SizedBox(
-                    width: 78,
-                    child: Center(
-                      child: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: onPlusTap,
-                        child: Container(
-                          width: 54,
-                          height: 54,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF111827),
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x33000000),
-                                blurRadius: 16,
-                                offset: Offset(0, 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(_barRadius),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: backgroundColor,
+                          borderRadius: BorderRadius.circular(_barRadius),
+                          border: Border.all(
+                            color: const Color(0x1AFFFFFF),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: SizedBox(
+                          height: _barHeight,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _Item(
+                                  selected: currentIndex == 0,
+                                  icon: CupertinoIcons.paperplane,
+                                  onTap: () => onTap(0),
+                                ),
+                              ),
+                              Expanded(
+                                child: _Item(
+                                  selected: currentIndex == 1,
+                                  icon: CupertinoIcons.tray,
+                                  onTap: () => onTap(1),
+                                ),
+                              ),
+                              // 给中间 + 预留空间
+                              const SizedBox(width: 86),
+                              Expanded(
+                                child: _Item(
+                                  selected: currentIndex == 2,
+                                  icon: CupertinoIcons.person,
+                                  onTap: () => onTap(2),
+                                ),
                               ),
                             ],
-                          ),
-                          child: const Icon(
-                            CupertinoIcons.plus,
-                            color: Color(0xFFF9FAFB),
-                            size: 24,
                           ),
                         ),
                       ),
                     ),
                   ),
-                  Expanded(
-                    child: _Item(
-                      selected: currentIndex == 2,
-                      icon: CupertinoIcons.person,
-                      onTap: () => onTap(2),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+
+              // 中间凸起的 +
+              Positioned(
+                bottom: _barHeight - (_plusSize / 2) + _plusLift,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: _PlusButton(
+                    onTap: onPlusTap,
+                    size: _plusSize,
+                  ),
+                ),
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlusButton extends StatelessWidget {
+  const _PlusButton({
+    required this.onTap,
+    required this.size,
+  });
+
+  final VoidCallback onTap;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: onTap,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: const Color(0xFF111827),
+          borderRadius: BorderRadius.circular(size * 0.36),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x3D000000),
+              blurRadius: 22,
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
+        child: const Icon(
+          CupertinoIcons.plus,
+          color: Color(0xFFF9FAFB),
+          size: 28,
         ),
       ),
     );
