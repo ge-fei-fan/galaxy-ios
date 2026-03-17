@@ -9,7 +9,7 @@ class MqttProfile {
     required this.clientId,
     this.username,
     this.password,
-    this.keepAliveInBackground = false,
+    this.keepAliveInBackground = true,
   });
 
   final String id;
@@ -75,7 +75,7 @@ class MqttProfile {
       clientId: map['clientId'] as String? ?? 'flutter_mqtt_client',
       username: map['username'] as String?,
       password: map['password'] as String?,
-      keepAliveInBackground: map['keepAliveInBackground'] as bool? ?? false,
+      keepAliveInBackground: map['keepAliveInBackground'] as bool? ?? true,
     );
   }
 }

@@ -26,7 +26,6 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
   late final TextEditingController _usernameController;
   late final TextEditingController _passwordController;
   bool _useTls = false;
-  bool _keepAliveInBackground = false;
 
   @override
   void initState() {
@@ -42,7 +41,6 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
     _usernameController = TextEditingController(text: p?.username ?? '');
     _passwordController = TextEditingController(text: p?.password ?? '');
     _useTls = p?.useTls ?? false;
-    _keepAliveInBackground = p?.keepAliveInBackground ?? false;
   }
 
   @override
@@ -83,7 +81,7 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
           : _clientIdController.text.trim(),
       username: username.isEmpty ? null : username,
       password: password.isEmpty ? null : password,
-      keepAliveInBackground: _keepAliveInBackground,
+      keepAliveInBackground: true,
     );
 
     if (widget.initial == null) {
@@ -163,13 +161,6 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
                 value: _useTls,
                 onChanged: (value) => setState(() => _useTls = value),
                 title: const Text('启用 TLS'),
-              ),
-              SwitchListTile(
-                value: _keepAliveInBackground,
-                onChanged: (value) =>
-                    setState(() => _keepAliveInBackground = value),
-                title: const Text('iOS 后台保活'),
-                subtitle: const Text('开启后进入后台继续接收消息'),
               ),
               const SizedBox(height: 12),
               TextField(

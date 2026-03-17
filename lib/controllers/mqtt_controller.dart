@@ -123,8 +123,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
           clientId: old['clientId'] as String? ?? 'flutter_mqtt_client',
           username: old['username'] as String?,
           password: old['password'] as String?,
-          keepAliveInBackground:
-              old['keepAliveInBackground'] as bool? ?? false,
+          keepAliveInBackground: true,
         );
         profiles = [migrated];
         activeProfileId = migrated.id;
@@ -144,7 +143,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
         clientId: 'flutter_mqtt_client',
         username: null,
         password: null,
-        keepAliveInBackground: false,
+        keepAliveInBackground: true,
       );
       profiles = [fallback];
       activeProfileId = fallback.id;
@@ -193,7 +192,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _syncKeepAliveStateToNative() async {
     try {
-      final keepAlive = activeProfile?.keepAliveInBackground ?? false;
+      final keepAlive = activeProfile?.keepAliveInBackground ?? true;
       if (keepAlive) {
         await _channel.invokeMethod('enableKeepAlive');
         _notificationService.log('Flutter: 已通知原生启用保活');

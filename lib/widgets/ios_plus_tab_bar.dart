@@ -22,7 +22,7 @@ class IosPlusTabBar extends StatelessWidget {
   static const _inactiveColor = Color(0xFF8E8E93);
 
   static const double _barHeight = 64;
-  static const double _barRadius = 64;
+  static const double _barRadius = 24;
   static const double _sidePadding = 16;
   static const double _bottomGap = 12;
 

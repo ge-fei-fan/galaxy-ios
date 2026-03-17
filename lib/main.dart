@@ -9,6 +9,7 @@ import 'package:galaxy_ios/pages/add_or_edit_profile_page.dart';
 import 'package:galaxy_ios/pages/profiles_page.dart';
 import 'package:galaxy_ios/pages/receive_page.dart';
 import 'package:galaxy_ios/pages/send_page.dart';
+import 'package:galaxy_ios/pages/settings_page.dart';
 import 'package:galaxy_ios/widgets/ios_plus_tab_bar.dart';
 
 Future<void> main() async {
@@ -86,6 +87,14 @@ class _MqttAppState extends State<MqttApp> {
                         MaterialPageRoute(
                           builder: (_) =>
                               AddOrEditProfilePage(controller: _controller),
+                        ),
+                      );
+                    },
+                    onSettingsTap: () async {
+                      await _navKey.currentState?.push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              SettingsPage(controller: _controller),
                         ),
                       );
                     },
