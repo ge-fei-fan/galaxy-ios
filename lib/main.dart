@@ -61,11 +61,11 @@ class _MqttAppState extends State<MqttApp> {
             useMaterial3: true,
           ),
           home: Scaffold(
-            // appBar: AppBar(
-            //   title: const Text('MQTT 客户端'),
-            //   backgroundColor: Theme.of(context).colorScheme.surface,
-            //   foregroundColor: Theme.of(context).colorScheme.onSurface,
-            // ),
+            appBar: AppBar(
+              // title: const Text('MQTT 客户端'),
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              foregroundColor: Theme.of(context).colorScheme.onSurface,
+            ),
             body: _controller.initialized
                 ? IndexedStack(
                     index: _currentIndex,
