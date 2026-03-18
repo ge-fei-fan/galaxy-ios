@@ -2,37 +2,44 @@ import 'package:flutter/material.dart';
 
 import 'package:galaxy_ios/controllers/mqtt_controller.dart';
 import 'package:galaxy_ios/models/mqtt_message_entry.dart';
+import 'package:galaxy_ios/widgets/segmented_capsule.dart';
 
-class ReceivePage extends StatelessWidget {
+class ReceivePage extends StatefulWidget {
   const ReceivePage({super.key, required this.controller});
 
   final MqttController controller;
 
   @override
+  State<ReceivePage> createState() => _ReceivePageState();
+}
+
+class _ReceivePageState extends State<ReceivePage> {
+  int _selectedIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Column(
-        children: [
-          Material(
-            color: Theme.of(context).colorScheme.surface,
-            child: const TabBar(
-              tabs: [
-                Tab(text: '订阅'),
-                Tab(text: '消息'),
-              ],
-            ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: SegmentedCapsule(
+            labels: const ['订阅', '消息'],
+            selectedIndex: _selectedIndex,
+            onChanged: (index) {
+              setState(() => _selectedIndex = index);
+            },
           ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _TopicsTab(controller: controller),
-                _MessagesTab(controller: controller),
-              ],
-            ),
+        ),
+        Expanded(
+          child: IndexedStack(
+            index: _selectedIndex,
+            children: [
+              _TopicsTab(controller: widget.controller),
+              _MessagesTab(controller: widget.controller),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

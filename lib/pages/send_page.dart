@@ -40,12 +40,12 @@ class _SendPageState extends State<SendPage> {
       behavior: HitTestBehavior.translucent,
       onTap: () => FocusScope.of(context).unfocus(),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '发送',
+              '发送内容',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
@@ -55,6 +55,8 @@ class _SendPageState extends State<SendPage> {
               decoration: const InputDecoration(
                 labelText: 'Topic',
                 border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.white,
               ),
             ),
             const SizedBox(height: 12),
@@ -68,6 +70,8 @@ class _SendPageState extends State<SendPage> {
                   labelText: 'Payload',
                   alignLabelWithHint: true,
                   border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
               ),
             ),

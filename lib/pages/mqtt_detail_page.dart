@@ -4,8 +4,9 @@ import 'package:galaxy_ios/controllers/mqtt_controller.dart';
 import 'package:galaxy_ios/models/mqtt_profile.dart';
 import 'package:galaxy_ios/pages/receive_page.dart';
 import 'package:galaxy_ios/pages/send_page.dart';
+import 'package:galaxy_ios/widgets/segmented_capsule.dart';
 
-class MqttDetailPage extends StatelessWidget {
+class MqttDetailPage extends StatefulWidget {
   const MqttDetailPage({
     super.key,
     required this.controller,
@@ -16,60 +17,81 @@ class MqttDetailPage extends StatelessWidget {
   final MqttProfile profile;
 
   @override
+  State<MqttDetailPage> createState() => _MqttDetailPageState();
+}
+
+class _MqttDetailPageState extends State<MqttDetailPage>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final topics = controller.topics;
+    final topics = widget.controller.topics;
     final topicSummary = topics.isEmpty ? '暂无主题' : topics.join('、');
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F6),
       appBar: AppBar(
-        title: Text(profile.name),
+        title: Text(widget.profile.name),
+        backgroundColor: const Color(0xFFF4F4F6),
+        elevation: 0,
       ),
-      body: DefaultTabController(
-        length: 2,
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              color: Theme.of(context).colorScheme.surface,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '当前配置：${profile.name}',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${profile.host}:${profile.port}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '当前主题：$topicSummary',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            color: const Color(0xFFF4F4F6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '当前配置：${widget.profile.name}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${widget.profile.host}:${widget.profile.port}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '当前主题：$topicSummary',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                SegmentedCapsule(
+                  labels: const ['发送', '接收'],
+                  selectedIndex: _tabController.index,
+                  onChanged: (index) {
+                    setState(() => _tabController.index = index);
+                  },
+                ),
+              ],
             ),
-            Material(
-              color: Theme.of(context).colorScheme.surface,
-              child: const TabBar(
-                tabs: [
-                  Tab(text: '发送'),
-                  Tab(text: '订阅接收'),
-                ],
-              ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                SendPage(controller: widget.controller),
+                ReceivePage(controller: widget.controller),
+              ],
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  SendPage(controller: controller),
-                  ReceivePage(controller: controller),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

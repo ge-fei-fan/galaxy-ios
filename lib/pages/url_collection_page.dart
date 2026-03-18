@@ -98,21 +98,26 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
 
   @override
   Widget build(BuildContext context) {
+    const pageBackground = Color(0xFFF4F4F6);
     return Scaffold(
+      backgroundColor: pageBackground,
       appBar: AppBar(
         title: const Text('收藏夹'),
         actions: [
-          IconButton(
-            tooltip: '新增网址',
-            onPressed: _openAddDialog,
-            icon: const Icon(Icons.add),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _CapsuleActionButton(
+              label: '新增',
+              icon: Icons.add_rounded,
+              onPressed: _openAddDialog,
+            ),
           ),
         ],
       ),
       body: _links.isEmpty
           ? const _EmptyState()
           : ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
               itemCount: _links.length,
               separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
@@ -135,21 +140,51 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.bookmark_border, size: 48, color: Colors.grey.shade400),
-          const SizedBox(height: 12),
-          Text(
-            '还没有保存网址',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '点击右上角 + 添加一个网址',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 16,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF0FF),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.bookmark_border,
+                color: Color(0xFF5B7BFF),
+                size: 30,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '还没有保存网址',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '点击右上角新增一个网址',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: Colors.grey.shade600),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -170,29 +205,28 @@ class _LinkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 0,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x12000000),
+                blurRadius: 14,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.public,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
+              _ThumbnailBox(title: link.title),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -202,27 +236,45 @@ class _LinkCard extends StatelessWidget {
                       link.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       link.url,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _formatMeta(link),
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelSmall
+                          ?.copyWith(color: Colors.grey.shade500),
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: '编辑',
-                onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined),
-              ),
-              IconButton(
-                tooltip: '删除',
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline),
+              const SizedBox(width: 6),
+              Column(
+                children: [
+                  IconButton(
+                    tooltip: '编辑',
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+                  IconButton(
+                    tooltip: '删除',
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
               ),
             ],
           ),
@@ -230,6 +282,111 @@ class _LinkCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ThumbnailBox extends StatelessWidget {
+  const _ThumbnailBox({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = [
+      const Color(0xFF7A8BFF),
+      const Color(0xFF8BC6FF),
+      const Color(0xFF9B8DFF),
+      const Color(0xFF6EC7C7),
+    ];
+    final color = colors[title.hashCode.abs() % colors.length];
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.95),
+            color.withValues(alpha: 0.65),
+          ],
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        title.isNotEmpty ? title.characters.first.toUpperCase() : 'W',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 18,
+        ),
+      ),
+    );
+  }
+}
+
+class _CapsuleActionButton extends StatelessWidget {
+  const _CapsuleActionButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onPressed,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFF8B7DFF),
+                Color(0xFF4EA7FF),
+              ],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x3D5A7BFF),
+                blurRadius: 12,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatMeta(SavedLink link) {
+  final date = link.createdAt;
+  final year = date.year.toString();
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '$year-$month-$day · 已收藏';
 }
 
 class WebEmbedPage extends StatefulWidget {
