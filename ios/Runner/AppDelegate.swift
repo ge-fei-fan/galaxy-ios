@@ -214,11 +214,20 @@ struct GalaxyDemoAttributes: ActivityAttributes {
     let state = GalaxyDemoAttributes.ContentState(statusText: "正在测试灵动岛")
 
     do {
-      let activity = try Activity<GalaxyDemoAttributes>.request(
-        attributes: attributes,
-        content: ActivityContent(state: state, staleDate: nil),
-        pushType: nil
-      )
+      let activity: Activity<GalaxyDemoAttributes>
+      if #available(iOS 16.2, *) {
+        activity = try Activity<GalaxyDemoAttributes>.request(
+          attributes: attributes,
+          content: ActivityContent(state: state, staleDate: nil),
+          pushType: nil
+        )
+      } else {
+        activity = try Activity<GalaxyDemoAttributes>.request(
+          attributes: attributes,
+          contentState: state,
+          pushType: nil
+        )
+      }
       demoActivity = activity
       let msg = "已启动 Live Activity（支持机型会显示在灵动岛/锁屏）"
       nativeLog("\(msg)，id=\(activity.id)")
@@ -253,10 +262,17 @@ struct GalaxyDemoAttributes: ActivityAttributes {
 
     Task {
       let finalState = GalaxyDemoAttributes.ContentState(statusText: "演示已结束")
-      await activity.end(
-        ActivityContent(state: finalState, staleDate: nil),
-        dismissalPolicy: .immediate
-      )
+      if #available(iOS 16.2, *) {
+        await activity.end(
+          ActivityContent(state: finalState, staleDate: nil),
+          dismissalPolicy: .immediate
+        )
+      } else {
+        await activity.end(
+          using: finalState,
+          dismissalPolicy: .immediate
+        )
+      }
       self.demoActivity = nil
       let msg = "已结束 Live Activity 演示"
       self.nativeLog(msg)
