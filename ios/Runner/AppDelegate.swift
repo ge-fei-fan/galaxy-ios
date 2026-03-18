@@ -2,6 +2,20 @@ import Flutter
 import UIKit
 import UserNotifications
 import AVFoundation
+#if canImport(ActivityKit)
+import ActivityKit
+#endif
+
+#if canImport(ActivityKit)
+@available(iOS 16.1, *)
+struct GalaxyDemoAttributes: ActivityAttributes {
+  public struct ContentState: Codable, Hashable {
+    var statusText: String
+  }
+
+  var title: String
+}
+#endif
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -14,6 +28,11 @@ import AVFoundation
   private var isKeepAliveEnabled = false
   /// MethodChannel 引用
   private var methodChannel: FlutterMethodChannel?
+#if canImport(ActivityKit)
+  /// 当前演示 Live Activity
+  @available(iOS 16.1, *)
+  private var demoActivity: Activity<GalaxyDemoAttributes>?
+#endif
 
   // MARK: - Logging
 
@@ -38,6 +57,10 @@ import AVFoundation
         result(true)
       case "isKeepAliveActive":
         result(self.isKeepAliveEnabled)
+      case "startDynamicIslandDemo":
+        self.startDynamicIslandDemo(result: result)
+      case "stopDynamicIslandDemo":
+        self.stopDynamicIslandDemo(result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -160,6 +183,90 @@ import AVFoundation
     audioPlayer?.stop()
     audioPlayer = nil
     nativeLog("静音音频已停止")
+  }
+
+  // MARK: - Dynamic Island / Live Activity Demo
+
+  private func startDynamicIslandDemo(result: @escaping FlutterResult) {
+#if canImport(ActivityKit)
+    guard #available(iOS 16.1, *) else {
+      let msg = "当前系统低于 iOS 16.1，无法启动 Live Activity"
+      nativeLog(msg)
+      result(msg)
+      return
+    }
+
+    if demoActivity != nil {
+      let msg = "灵动岛演示已在运行中"
+      nativeLog(msg)
+      result(msg)
+      return
+    }
+
+    guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+      let msg = "系统未开启 Live Activity（请检查系统设置）"
+      nativeLog(msg)
+      result(msg)
+      return
+    }
+
+    let attributes = GalaxyDemoAttributes(title: "Galaxy Demo")
+    let state = GalaxyDemoAttributes.ContentState(statusText: "正在测试灵动岛")
+
+    do {
+      let activity = try Activity<GalaxyDemoAttributes>.request(
+        attributes: attributes,
+        content: ActivityContent(state: state, staleDate: nil),
+        pushType: nil
+      )
+      demoActivity = activity
+      let msg = "已启动 Live Activity（支持机型会显示在灵动岛/锁屏）"
+      nativeLog("\(msg)，id=\(activity.id)")
+      result(msg)
+    } catch {
+      let msg = "启动 Live Activity 失败: \(error.localizedDescription)"
+      nativeLog(msg)
+      result(msg)
+    }
+#else
+    let msg = "当前构建环境不支持 ActivityKit，无法启动 Live Activity"
+    nativeLog(msg)
+    result(msg)
+#endif
+  }
+
+  private func stopDynamicIslandDemo(result: @escaping FlutterResult) {
+#if canImport(ActivityKit)
+    guard #available(iOS 16.1, *) else {
+      let msg = "当前系统低于 iOS 16.1，无需结束 Live Activity"
+      nativeLog(msg)
+      result(msg)
+      return
+    }
+
+    guard let activity = demoActivity else {
+      let msg = "当前没有运行中的灵动岛演示"
+      nativeLog(msg)
+      result(msg)
+      return
+    }
+
+    Task {
+      let finalState = GalaxyDemoAttributes.ContentState(statusText: "演示已结束")
+      await activity.end(
+        ActivityContent(state: finalState, staleDate: nil),
+        dismissalPolicy: .immediate
+      )
+      self.demoActivity = nil
+      let msg = "已结束 Live Activity 演示"
+      self.nativeLog(msg)
+      result(msg)
+    }
+#else
+    let msg = "当前构建环境不支持 ActivityKit"
+    nativeLog(msg)
+    result(msg)
+#endif
   }
 
   // MARK: - UNUserNotificationCenterDelegate

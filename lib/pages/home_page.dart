@@ -6,54 +6,58 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-      children: [
-        const Text(
-          '首页',
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w700,
-            height: 1.05,
+    return SafeArea(
+      top: true,
+      bottom: false,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+        children: [
+          const Text(
+            '首页',
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w700,
+              height: 1.05,
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                title: '已连接',
-                value: '1',
-                icon: Icons.link,
-                color: colorScheme.primary,
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  title: '已连接',
+                  value: '1',
+                  icon: Icons.link,
+                  color: colorScheme.primary,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatCard(
-                title: '今日消息',
-                value: '128',
-                icon: Icons.mark_email_unread_outlined,
-                color: colorScheme.secondary,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  title: '今日消息',
+                  value: '128',
+                  icon: Icons.mark_email_unread_outlined,
+                  color: colorScheme.secondary,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _LargeCard(
-          title: '快捷操作',
-          subtitle: '快速进入 MQTT 配置与订阅管理',
-          icon: Icons.tune,
-          color: colorScheme.tertiary,
-        ),
-        const SizedBox(height: 12),
-        _LargeCard(
-          title: '消息概览',
-          subtitle: '查看最新主题消息与连接状态',
-          icon: Icons.inbox_outlined,
-          color: colorScheme.primaryContainer,
-        ),
-      ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          _LargeCard(
+            title: '快捷操作',
+            subtitle: '快速进入 MQTT 配置与订阅管理',
+            icon: Icons.tune,
+            color: colorScheme.tertiary,
+          ),
+          const SizedBox(height: 12),
+          _LargeCard(
+            title: '消息概览',
+            subtitle: '查看最新主题消息与连接状态',
+            icon: Icons.inbox_outlined,
+            color: colorScheme.primaryContainer,
+          ),
+        ],
+      ),
     );
   }
 }

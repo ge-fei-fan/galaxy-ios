@@ -605,6 +605,36 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     lastTestResult = result;
     notifyListeners();
   }
+
+  /// 触发 iOS Live Activity（灵动岛）演示
+  Future<String> startDynamicIslandDemo() async {
+    try {
+      final result = await _channel.invokeMethod<String>(
+        'startDynamicIslandDemo',
+      );
+      final message = result ?? '已请求启动灵动岛演示';
+      _notificationService.log('Flutter: $message');
+      return message;
+    } catch (e) {
+      final message = '启动灵动岛演示失败: $e';
+      _notificationService.log('Flutter: $message');
+      return message;
+    }
+  }
+
+  /// 结束 iOS Live Activity（灵动岛）演示
+  Future<String> stopDynamicIslandDemo() async {
+    try {
+      final result = await _channel.invokeMethod<String>('stopDynamicIslandDemo');
+      final message = result ?? '已请求结束灵动岛演示';
+      _notificationService.log('Flutter: $message');
+      return message;
+    } catch (e) {
+      final message = '结束灵动岛演示失败: $e';
+      _notificationService.log('Flutter: $message');
+      return message;
+    }
+  }
 }
 
 extension _FirstOrNullExt<E> on Iterable<E> {

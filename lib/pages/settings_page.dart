@@ -115,6 +115,38 @@ class SettingsPage extends StatelessWidget {
                 label: const Text('查看日志'),
               ),
             ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final result = await controller.startDynamicIslandDemo();
+                  if (!context.mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(content: Text(result)),
+                  );
+                },
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('测试灵动岛（开始）'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final result = await controller.stopDynamicIslandDemo();
+                  if (!context.mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(content: Text(result)),
+                  );
+                },
+                icon: const Icon(Icons.stop_circle_outlined),
+                label: const Text('测试灵动岛（结束）'),
+              ),
+            ),
           ],
         ),
         ),
