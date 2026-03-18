@@ -40,7 +40,7 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
   Future<void> _openAddDialog() async {
     final result = await showDialog<_LinkFormResult>(
       context: context,
-      builder: (context) => const _AddLinkDialog(),
+      builder: (context) => const _LinkDialog(),
     );
     if (result == null) return;
     final link = SavedLink(
@@ -51,6 +51,31 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
     );
     setState(() {
       _links.insert(0, link);
+    });
+    await _saveLinks();
+  }
+
+  Future<void> _openEditDialog(SavedLink link) async {
+    final result = await showDialog<_LinkFormResult>(
+      context: context,
+      builder: (context) => _LinkDialog(
+        dialogTitle: '编辑网址',
+        initialUrl: link.url,
+        initialTitle: link.title,
+      ),
+    );
+    if (result == null) return;
+    final updated = SavedLink(
+      id: link.id,
+      url: result.url,
+      title: result.title.isEmpty ? result.url : result.title,
+      createdAt: link.createdAt,
+    );
+    setState(() {
+      final index = _links.indexWhere((item) => item.id == link.id);
+      if (index != -1) {
+        _links[index] = updated;
+      }
     });
     await _saveLinks();
   }
@@ -75,7 +100,7 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('网址收藏'),
+        title: const Text('收藏夹'),
         actions: [
           IconButton(
             tooltip: '新增网址',
@@ -95,6 +120,7 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
                 return _LinkCard(
                   link: link,
                   onTap: () => _openLink(link),
+                  onEdit: () => _openEditDialog(link),
                   onDelete: () => _removeLink(link),
                 );
               },
@@ -133,11 +159,13 @@ class _LinkCard extends StatelessWidget {
   const _LinkCard({
     required this.link,
     required this.onTap,
+    required this.onEdit,
     required this.onDelete,
   });
 
   final SavedLink link;
   final VoidCallback onTap;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -185,6 +213,11 @@ class _LinkCard extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                tooltip: '编辑',
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined),
               ),
               IconButton(
                 tooltip: '删除',
@@ -267,17 +300,33 @@ class _WebViewWrapperState extends State<WebViewWrapper> {
   }
 }
 
-class _AddLinkDialog extends StatefulWidget {
-  const _AddLinkDialog();
+class _LinkDialog extends StatefulWidget {
+  const _LinkDialog({
+    this.dialogTitle = '新增网址',
+    this.initialUrl,
+    this.initialTitle,
+  });
+
+  final String dialogTitle;
+  final String? initialUrl;
+  final String? initialTitle;
 
   @override
-  State<_AddLinkDialog> createState() => _AddLinkDialogState();
+  State<_LinkDialog> createState() => _LinkDialogState();
 }
 
-class _AddLinkDialogState extends State<_AddLinkDialog> {
-  final _urlController = TextEditingController();
-  final _titleController = TextEditingController();
+class _LinkDialogState extends State<_LinkDialog> {
+  late final TextEditingController _urlController;
+  late final TextEditingController _titleController;
   String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlController = TextEditingController(text: widget.initialUrl ?? '');
+    _titleController =
+        TextEditingController(text: widget.initialTitle ?? '');
+  }
 
   @override
   void dispose() {
@@ -304,7 +353,7 @@ class _AddLinkDialogState extends State<_AddLinkDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('新增网址'),
+      title: Text(widget.dialogTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
