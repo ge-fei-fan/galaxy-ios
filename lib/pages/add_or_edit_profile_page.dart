@@ -79,6 +79,7 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
       clientId: _clientIdController.text.trim().isEmpty
           ? 'flutter_mqtt_client'
           : _clientIdController.text.trim(),
+      topics: widget.initial?.topics ?? const [],
       username: username.isEmpty ? null : username,
       password: password.isEmpty ? null : password,
       keepAliveInBackground: true,

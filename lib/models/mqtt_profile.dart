@@ -7,6 +7,7 @@ class MqttProfile {
     required this.port,
     required this.useTls,
     required this.clientId,
+    required this.topics,
     this.username,
     this.password,
     this.keepAliveInBackground = true,
@@ -19,6 +20,7 @@ class MqttProfile {
   final int port;
   final bool useTls;
   final String clientId;
+  final List<String> topics;
   final String? username;
   final String? password;
   final bool keepAliveInBackground;
@@ -31,6 +33,7 @@ class MqttProfile {
     int? port,
     bool? useTls,
     String? clientId,
+    List<String>? topics,
     String? username,
     String? password,
     bool? keepAliveInBackground,
@@ -43,6 +46,7 @@ class MqttProfile {
       port: port ?? this.port,
       useTls: useTls ?? this.useTls,
       clientId: clientId ?? this.clientId,
+      topics: topics ?? this.topics,
       username: username ?? this.username,
       password: password ?? this.password,
       keepAliveInBackground: keepAliveInBackground ?? this.keepAliveInBackground,
@@ -58,6 +62,7 @@ class MqttProfile {
       'port': port,
       'useTls': useTls,
       'clientId': clientId,
+      'topics': topics,
       'username': username,
       'password': password,
       'keepAliveInBackground': keepAliveInBackground,
@@ -73,6 +78,7 @@ class MqttProfile {
       port: (map['port'] as num?)?.toInt() ?? 1883,
       useTls: map['useTls'] as bool? ?? false,
       clientId: map['clientId'] as String? ?? 'flutter_mqtt_client',
+      topics: (map['topics'] as List?)?.whereType<String>().toList() ?? const [],
       username: map['username'] as String?,
       password: map['password'] as String?,
       keepAliveInBackground: map['keepAliveInBackground'] as bool? ?? true,

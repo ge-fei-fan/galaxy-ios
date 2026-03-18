@@ -6,7 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:galaxy_ios/controllers/mqtt_controller.dart';
 import 'package:galaxy_ios/pages/home_page.dart';
-import 'package:galaxy_ios/pages/placeholder_page.dart';
+import 'package:galaxy_ios/pages/url_collection_page.dart';
 import 'package:galaxy_ios/pages/profiles_page.dart';
 import 'package:galaxy_ios/pages/settings_page.dart';
 
@@ -17,6 +17,7 @@ Future<void> main() async {
   await Hive.openBox('topics');
   await Hive.openBox('messages');
   await Hive.openBox('profiles');
+  await Hive.openBox('links');
   runApp(const MqttApp());
 }
 
@@ -59,6 +60,9 @@ class _MqttAppState extends State<MqttApp> {
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
             useMaterial3: true,
+            appBarTheme: const AppBarTheme(
+              toolbarHeight: 44,
+            ),
           ),
           home: Scaffold(
             appBar: AppBar(
@@ -71,7 +75,7 @@ class _MqttAppState extends State<MqttApp> {
                     index: _currentIndex,
                     children: [
                       const HomePage(),
-                      const PlaceholderPage(),
+                      const UrlCollectionPage(),
                       ProfilesPage(controller: _controller),
                       SettingsPage(controller: _controller),
                     ],
@@ -121,7 +125,7 @@ class _MainTabBar extends StatelessWidget {
           ),
           Expanded(
             child: IconButton(
-              tooltip: '预留',
+              tooltip: '收藏夹',
               onPressed: () => onTap(1),
               icon: Icon(
                 Icons.grid_view_rounded,

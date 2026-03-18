@@ -38,6 +38,9 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
   List<String> topics = [];
   String? selectedTopic;
   Map<String, List<MqttMessageEntry>> messagesByTopic = {};
+  final Map<String, List<String>> _topicsByProfile = {};
+  final Map<String, Map<String, List<MqttMessageEntry>>> _messagesByProfile =
+      {};
 
   MqttServerClient? _client;
   StreamSubscription<List<MqttReceivedMessage<MqttMessage>>>? _subscription;
@@ -59,28 +62,9 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     });
 
     _loadProfilesWithMigration();
-
-    final storedTopics = _topicsBox.get('topics');
-    if (storedTopics is List) {
-      topics = storedTopics.whereType<String>().toList();
-    }
-
-    final storedMessages = _messagesBox.get('history');
-    if (storedMessages is Map) {
-      messagesByTopic = storedMessages.map<String, List<MqttMessageEntry>>(
-        (key, value) => MapEntry(
-          key.toString(),
-          (value as List?)
-                  ?.whereType<Map>()
-                  .map(MqttMessageEntry.fromMap)
-                  .toList() ??
-              [],
-        ),
-      );
-    }
-    if (topics.isNotEmpty) {
-      selectedTopic = topics.first;
-    }
+    _loadTopics();
+    _loadMessages();
+    _syncActiveProfileData();
 
     await _notificationService.init();
 
@@ -124,6 +108,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
           username: old['username'] as String?,
           password: old['password'] as String?,
           keepAliveInBackground: true,
+          topics: const [],
         );
         profiles = [migrated];
         activeProfileId = migrated.id;
@@ -144,6 +129,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
         username: null,
         password: null,
         keepAliveInBackground: true,
+        topics: const [],
       );
       profiles = [fallback];
       activeProfileId = fallback.id;
@@ -211,6 +197,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     activeProfileId = profile.id;
     await _persistProfiles();
     await _syncKeepAliveStateToNative();
+    _syncActiveProfileData();
     notifyListeners();
   }
 
@@ -218,6 +205,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     profiles = profiles.map((p) => p.id == profile.id ? profile : p).toList();
     await _persistProfiles();
     await _syncKeepAliveStateToNative();
+    _syncActiveProfileData();
     notifyListeners();
   }
 
@@ -227,11 +215,16 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
       disconnect();
     }
     profiles = profiles.where((p) => p.id != id).toList();
+    _topicsByProfile.remove(id);
+    _messagesByProfile.remove(id);
     if (activeProfileId == id) {
       activeProfileId = profiles.first.id;
     }
     await _persistProfiles();
+    await _persistTopics();
+    await _persistMessages();
     await _syncKeepAliveStateToNative();
+    _syncActiveProfileData();
     notifyListeners();
   }
 
@@ -243,6 +236,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     activeProfileId = id;
     await _profilesBox.put('activeProfileId', activeProfileId);
     await _syncKeepAliveStateToNative();
+    _syncActiveProfileData();
     notifyListeners();
   }
 
@@ -353,7 +347,8 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     if (trimmed.isEmpty || topics.contains(trimmed)) return;
     topics.add(trimmed);
     selectedTopic ??= trimmed;
-    await _topicsBox.put('topics', topics);
+    _setTopicsForActiveProfile(topics);
+    await _persistTopics();
     notifyListeners();
     if (connected) {
       subscribe(trimmed);
@@ -366,8 +361,10 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     if (selectedTopic == topic) {
       selectedTopic = topics.isNotEmpty ? topics.first : null;
     }
-    await _topicsBox.put('topics', topics);
-    await _saveMessages();
+    _setTopicsForActiveProfile(topics);
+    _setMessagesForActiveProfile(messagesByTopic);
+    await _persistTopics();
+    await _persistMessages();
     notifyListeners();
   }
 
@@ -416,16 +413,150 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
         list.insert(0, entry);
         _notificationService.showMessage(msg.topic, message);
       }
-      _saveMessages();
+      _setMessagesForActiveProfile(messagesByTopic);
+      _persistMessages();
       notifyListeners();
     });
   }
 
-  Future<void> _saveMessages() async {
-    final payload = messagesByTopic.map((topic, list) {
-      return MapEntry(topic, list.map((e) => e.toMap()).toList());
+  void _loadTopics() {
+    final storedTopicsByProfile = _topicsBox.get('topicsByProfile');
+    if (storedTopicsByProfile is Map) {
+      for (final entry in storedTopicsByProfile.entries) {
+        final id = entry.key.toString();
+        final value = entry.value;
+        if (value is List) {
+          _topicsByProfile[id] = value.whereType<String>().toList();
+        }
+      }
+    }
+
+    // 兼容旧结构：全局 topics
+    final legacyTopics = _topicsBox.get('topics');
+    if (legacyTopics is List && legacyTopics.isNotEmpty) {
+      final activeId = activeProfileId;
+      if (activeId != null && (_topicsByProfile[activeId]?.isEmpty ?? true)) {
+        _topicsByProfile[activeId] = legacyTopics.whereType<String>().toList();
+      }
+      _topicsBox.delete('topics');
+      _persistTopics();
+    }
+  }
+
+  void _loadMessages() {
+    final storedMessagesByProfile = _messagesBox.get('historyByProfile');
+    if (storedMessagesByProfile is Map) {
+      for (final entry in storedMessagesByProfile.entries) {
+        final id = entry.key.toString();
+        final value = entry.value;
+        if (value is Map) {
+          _messagesByProfile[id] = value.map<String, List<MqttMessageEntry>>(
+            (key, msgList) => MapEntry(
+              key.toString(),
+              (msgList as List?)
+                      ?.whereType<Map>()
+                      .map(MqttMessageEntry.fromMap)
+                      .toList() ??
+                  [],
+            ),
+          );
+        }
+      }
+    }
+
+    // 兼容旧结构：全局 history
+    final legacyMessages = _messagesBox.get('history');
+    if (legacyMessages is Map && legacyMessages.isNotEmpty) {
+      final activeId = activeProfileId;
+      if (activeId != null && (_messagesByProfile[activeId]?.isEmpty ?? true)) {
+        _messagesByProfile[activeId] = legacyMessages.map<String, List<MqttMessageEntry>>(
+          (key, value) => MapEntry(
+            key.toString(),
+            (value as List?)
+                    ?.whereType<Map>()
+                    .map(MqttMessageEntry.fromMap)
+                    .toList() ??
+                [],
+          ),
+        );
+      }
+      _messagesBox.delete('history');
+      _persistMessages();
+    }
+  }
+
+  void _syncActiveProfileData() {
+    final activeId = activeProfileId;
+    if (activeId == null) {
+      topics = [];
+      selectedTopic = null;
+      messagesByTopic = {};
+      return;
+    }
+
+    final profile = activeProfile;
+    if (profile != null) {
+      final storedTopics = _topicsByProfile[activeId] ?? const [];
+      if (profile.topics.isEmpty && storedTopics.isNotEmpty) {
+        _topicsByProfile[activeId] = List<String>.from(storedTopics);
+        profiles = profiles
+            .map(
+              (p) => p.id == activeId
+                  ? p.copyWith(topics: List<String>.from(storedTopics))
+                  : p,
+            )
+            .toList();
+        _persistProfiles();
+      } else {
+        _topicsByProfile[activeId] = profile.topics;
+      }
+    }
+
+    topics = List<String>.from(_topicsByProfile[activeId] ?? const []);
+    messagesByTopic = Map<String, List<MqttMessageEntry>>.from(
+      _messagesByProfile[activeId] ?? const {},
+    );
+    if (topics.isNotEmpty) {
+      selectedTopic = topics.contains(selectedTopic) ? selectedTopic : topics.first;
+    } else {
+      selectedTopic = null;
+    }
+  }
+
+  void _setTopicsForActiveProfile(List<String> updated) {
+    final activeId = activeProfileId;
+    if (activeId == null) return;
+    _topicsByProfile[activeId] = List<String>.from(updated);
+    profiles = profiles
+        .map(
+          (p) => p.id == activeId ? p.copyWith(topics: List<String>.from(updated)) : p,
+        )
+        .toList();
+    _persistProfiles();
+  }
+
+  void _setMessagesForActiveProfile(
+    Map<String, List<MqttMessageEntry>> updated,
+  ) {
+    final activeId = activeProfileId;
+    if (activeId == null) return;
+    _messagesByProfile[activeId] = Map<String, List<MqttMessageEntry>>.from(updated);
+  }
+
+  Future<void> _persistTopics() async {
+    await _topicsBox.put('topicsByProfile', _topicsByProfile);
+  }
+
+  Future<void> _persistMessages() async {
+    final payload = _messagesByProfile.map((profileId, topicMap) {
+      return MapEntry(
+        profileId,
+        topicMap.map((topic, list) {
+          return MapEntry(topic, list.map((e) => e.toMap()).toList());
+        }),
+      );
     });
-    await _messagesBox.put('history', payload);
+    await _messagesBox.put('historyByProfile', payload);
   }
 
   void _handleConnected() {
