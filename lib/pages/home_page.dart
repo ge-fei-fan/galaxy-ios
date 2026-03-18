@@ -7,13 +7,17 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       children: [
-        Text(
-          '欢迎回来 👋',
-          style: Theme.of(context).textTheme.titleLarge,
+        const Text(
+          '首页',
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w700,
+            height: 1.05,
+          ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Row(
           children: [
             Expanded(
@@ -116,7 +120,7 @@ class _LargeCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.18),
+                color: color.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color),

@@ -87,18 +87,25 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('设置'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '工具',
-              style: Theme.of(context).textTheme.titleMedium,
+            const Text(
+              '设置',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                height: 1.05,
+              ),
             ),
+            const SizedBox(height: 14),
+            // Text(
+            //   '工具',
+            //   style: Theme.of(context).textTheme.titleMedium,
+            // ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -109,6 +116,7 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

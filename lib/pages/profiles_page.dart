@@ -44,16 +44,20 @@ class ProfilesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = controller.activeProfile;
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
-                child: Text(
-                  '配置列表',
-                  style: Theme.of(context).textTheme.titleLarge,
+                child: const Text(
+                  'mqtt客户端',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    height: 1.05,
+                  ),
                 ),
               ),
               IconButton(

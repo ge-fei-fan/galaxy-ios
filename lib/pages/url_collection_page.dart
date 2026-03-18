@@ -101,35 +101,54 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
     const pageBackground = Color(0xFFEFEFF2);
     return Scaffold(
       backgroundColor: pageBackground,
-      appBar: AppBar(
-        title: const Text('收藏夹'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: _CapsuleActionButton(
-              label: '新增',
-              icon: Icons.add_rounded,
-              onPressed: _openAddDialog,
-            ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      '收藏',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        height: 1.05,
+                      ),
+                    ),
+                  ),
+                  _CapsuleActionButton(
+                    label: '新增',
+                    icon: Icons.add_rounded,
+                    onPressed: _openAddDialog,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: _links.isEmpty
+                    ? const _EmptyState()
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(0, 8, 0, 20),
+                        itemCount: _links.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final link = _links[index];
+                          return _LinkCard(
+                            link: link,
+                            onTap: () => _openLink(link),
+                            onEdit: () => _openEditDialog(link),
+                            onDelete: () => _removeLink(link),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-      body: _links.isEmpty
-          ? const _EmptyState()
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-              itemCount: _links.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final link = _links[index];
-                return _LinkCard(
-                  link: link,
-                  onTap: () => _openLink(link),
-                  onEdit: () => _openEditDialog(link),
-                  onDelete: () => _removeLink(link),
-                );
-              },
-            ),
     );
   }
 }
@@ -248,7 +267,8 @@ class _LinkCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Column(
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     tooltip: '编辑',

@@ -69,11 +69,6 @@ class _MqttAppState extends State<MqttApp> {
             ),
           ),
           home: Scaffold(
-            appBar: AppBar(
-              // title: const Text('MQTT 客户端'),
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              foregroundColor: Theme.of(context).colorScheme.onSurface,
-            ),
             body: _controller.initialized
                 ? IndexedStack(
                     index: _currentIndex,
@@ -114,7 +109,7 @@ class _MainTabBar extends StatelessWidget {
     final inactiveColor = Colors.grey;
 
     if (useIosStyle) {
-      const backgroundColor = Color(0xCC1E1F24);
+      const backgroundColor = Color(0xB31E1F24);
       const inactiveColorDark = Color(0xFF8E8E97);
 
       final tabs = <({
@@ -124,7 +119,7 @@ class _MainTabBar extends StatelessWidget {
         Color highlightColor,
       })>[
         (
-          label: '主页',
+          label: '首页',
           activeIcon: Icons.home_rounded,
           inactiveIcon: Icons.home_outlined,
           highlightColor: const Color(0xFF4DA3FF),
@@ -136,7 +131,7 @@ class _MainTabBar extends StatelessWidget {
           highlightColor: const Color(0xFF45D4C6),
         ),
         (
-          label: 'MQTT',
+          label: 'mqtt',
           activeIcon: Icons.cloud_done_rounded,
           inactiveIcon: Icons.cloud_outlined,
           highlightColor: const Color(0xFF9B74FF),
@@ -151,93 +146,121 @@ class _MainTabBar extends StatelessWidget {
 
       final selectedIndex = currentIndex.clamp(0, tabs.length - 1);
       final selectedColor = tabs[selectedIndex].highlightColor;
-      final indicatorAlignmentX = -1 + (2 * selectedIndex + 1) / tabs.length;
 
       return SafeArea(
         top: false,
-        child: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                color: backgroundColor,
-                border: Border(
-                  top: BorderSide(color: Color(0x4DFFFFFF), width: 0.5),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x52000000),
+                  blurRadius: 26,
+                  offset: Offset(0, 12),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x44000000),
-                    blurRadius: 18,
-                    offset: Offset(0, -4),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: backgroundColor,
+                    border: Border.all(
+                      color: const Color(0x26FFFFFF),
+                      width: 0.8,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                ],
-              ),
-              child: SizedBox(
-                height: 72,
-                child: Stack(
-                  children: [
-                    AnimatedAlign(
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeOutCubic,
-                      alignment: Alignment(indicatorAlignmentX, -0.12),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 280),
-                        curve: Curves.easeOutCubic,
-                        width: 64,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: selectedColor.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: selectedColor.withValues(alpha: 0.28),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
+                  child: SizedBox(
+                    height: 72,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final tabWidth = constraints.maxWidth / tabs.length;
+                        final centerX = tabWidth * (selectedIndex + 0.5);
+
+                        const haloCoreSize = 18.0;
+                        const bottomLineWidth = 20.0;
+                        const bottomLineHeight = 3.0;
+
+                        return Stack(
+                          children: [
+                            AnimatedPositioned(
+                              duration: const Duration(milliseconds: 320),
+                              curve: Curves.easeOutCubic,
+                              left: centerX - (haloCoreSize / 2),
+                              top: 14,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 280),
+                                curve: Curves.easeOutCubic,
+                                width: haloCoreSize,
+                                height: haloCoreSize,
+                                decoration: BoxDecoration(
+                                  color: selectedColor.withValues(alpha: 0.22),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: selectedColor.withValues(alpha: 0.42),
+                                      blurRadius: 30,
+                                      spreadRadius: 8,
+                                    ),
+                                    BoxShadow(
+                                      color: selectedColor.withValues(alpha: 0.2),
+                                      blurRadius: 52,
+                                      spreadRadius: 18,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            AnimatedPositioned(
+                              duration: const Duration(milliseconds: 320),
+                              curve: Curves.easeOutCubic,
+                              left: centerX - (bottomLineWidth / 2),
+                              bottom: 3,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 280),
+                                curve: Curves.easeOutCubic,
+                                width: bottomLineWidth,
+                                height: bottomLineHeight,
+                                decoration: BoxDecoration(
+                                  color: selectedColor.withValues(alpha: 0.9),
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: selectedColor.withValues(alpha: 0.4),
+                                      blurRadius: 10,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                for (var i = 0; i < tabs.length; i++)
+                                  Expanded(
+                                    child: _AnimatedTabButton(
+                                      label: tabs[i].label,
+                                      selected: currentIndex == i,
+                                      icon: currentIndex == i
+                                          ? tabs[i].activeIcon
+                                          : tabs[i].inactiveIcon,
+                                      onTap: () => onTap(i),
+                                      activeColor: tabs[i].highlightColor,
+                                      inactiveColor: inactiveColorDark,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ],
-                        ),
-                      ),
+                        );
+                      },
                     ),
-                    AnimatedAlign(
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeOutCubic,
-                      alignment: Alignment(indicatorAlignmentX, 0.96),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 280),
-                        curve: Curves.easeOutCubic,
-                        width: 24,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: selectedColor,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: selectedColor.withValues(alpha: 0.52),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        for (var i = 0; i < tabs.length; i++)
-                          Expanded(
-                            child: _AnimatedTabButton(
-                              label: tabs[i].label,
-                              selected: currentIndex == i,
-                              icon: currentIndex == i
-                                  ? tabs[i].activeIcon
-                                  : tabs[i].inactiveIcon,
-                              onTap: () => onTap(i),
-                              activeColor: tabs[i].highlightColor,
-                              inactiveColor: inactiveColorDark,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -318,46 +341,42 @@ class _AnimatedTabButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = selected ? activeColor : inactiveColor;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        splashColor: Colors.white12,
-        highlightColor: Colors.transparent,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedSlide(
-                offset: selected ? const Offset(0, -0.08) : Offset.zero,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedSlide(
+              offset: selected ? const Offset(0, -0.08) : Offset.zero,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              child: AnimatedScale(
+                scale: selected ? 1.16 : 1,
                 duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-                child: AnimatedScale(
-                  scale: selected ? 1.16 : 1,
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutBack,
-                  child: Icon(
-                    icon,
-                    size: 28,
-                    color: color,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 3),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                curve: Curves.easeOutBack,
+                child: Icon(
+                  icon,
+                  size: 28,
                   color: color,
                 ),
-                child: Text(label),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 3),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: color,
+              ),
+              child: Text(label),
+            ),
+          ],
         ),
       ),
     );
