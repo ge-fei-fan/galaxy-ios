@@ -98,7 +98,7 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
 
   @override
   Widget build(BuildContext context) {
-    const pageBackground = Color(0xFFF4F4F6);
+    const pageBackground = Color(0xFFEFEFF2);
     return Scaffold(
       backgroundColor: pageBackground,
       appBar: AppBar(
@@ -146,13 +146,6 @@ class _EmptyState extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x14000000),
-              blurRadius: 16,
-              offset: Offset(0, 8),
-            ),
-          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -215,13 +208,6 @@ class _LinkCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 14,
-                offset: Offset(0, 6),
-              ),
-            ],
           ),
           padding: const EdgeInsets.all(14),
           child: Row(

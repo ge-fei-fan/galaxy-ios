@@ -22,12 +22,19 @@ class _ReceivePageState extends State<ReceivePage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-          child: SegmentedCapsule(
-            labels: const ['订阅', '消息'],
-            selectedIndex: _selectedIndex,
-            onChanged: (index) {
-              setState(() => _selectedIndex = index);
-            },
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: SegmentedCapsule(
+              labels: const ['订阅', '消息'],
+              selectedIndex: _selectedIndex,
+              width: 180,
+              height: 34,
+              cornerRadius: 10,
+              selectedColor: const Color(0xFF4CB3FF),
+              onChanged: (index) {
+                setState(() => _selectedIndex = index);
+              },
+            ),
           ),
         ),
         Expanded(

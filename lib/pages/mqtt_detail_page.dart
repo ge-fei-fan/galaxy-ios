@@ -71,12 +71,18 @@ class _MqttDetailPageState extends State<MqttDetailPage>
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 12),
-                SegmentedCapsule(
-                  labels: const ['发送', '接收'],
-                  selectedIndex: _tabController.index,
-                  onChanged: (index) {
-                    setState(() => _tabController.index = index);
-                  },
+                Center(
+                  child: SegmentedCapsule(
+                    labels: const ['发送', '接收'],
+                    selectedIndex: _tabController.index,
+                    width: MediaQuery.of(context).size.width * 0.8,
+                    height: 36,
+                    cornerRadius: 10,
+                    selectedColor: const Color(0xFF4CB3FF),
+                    onChanged: (index) {
+                      setState(() => _tabController.index = index);
+                    },
+                  ),
                 ),
               ],
             ),
