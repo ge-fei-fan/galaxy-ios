@@ -30,8 +30,7 @@ struct GalaxyDemoAttributes: ActivityAttributes {
   private var methodChannel: FlutterMethodChannel?
 #if canImport(ActivityKit)
   /// 当前演示 Live Activity
-  @available(iOS 16.1, *)
-  private var demoActivity: Activity<GalaxyDemoAttributes>?
+  private var demoActivity: Any?
 #endif
 
   // MARK: - Logging
@@ -253,7 +252,7 @@ struct GalaxyDemoAttributes: ActivityAttributes {
       return
     }
 
-    guard let activity = demoActivity else {
+    guard let activity = demoActivity as? Activity<GalaxyDemoAttributes> else {
       let msg = "当前没有运行中的灵动岛演示"
       nativeLog(msg)
       result(msg)
