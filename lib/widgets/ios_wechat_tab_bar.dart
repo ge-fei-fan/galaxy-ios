@@ -18,7 +18,8 @@ class IosWechatTabBar extends StatelessWidget {
 
   static const _activeColor = Color(0xFF0A63FF);
   static const _inactiveColor = Color(0xFF8E8E93); // iOS 系统灰
-  static const _highlightColor = Color(0x140A63FF);
+  static const _highlightColor = Color(0x1F0A63FF);
+  static const _highlightGlowColor = Color(0x4D0A63FF);
 
   @override
   Widget build(BuildContext context) {
@@ -41,82 +42,90 @@ class IosWechatTabBar extends StatelessWidget {
                 ),
               ),
             ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final itemWidth = constraints.maxWidth / 3;
-                final highlightLeft = itemWidth * currentIndex;
-                return SizedBox(
-                  height: 58,
-                  child: Stack(
-                    children: [
-                      AnimatedPositioned(
-                        duration: const Duration(milliseconds: 280),
-                        curve: Curves.easeOutCubic,
-                        left: highlightLeft + itemWidth * 0.15,
-                        top: 7,
-                        child: Container(
-                          width: itemWidth * 0.7,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: _highlightColor,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x220A63FF),
-                                blurRadius: 12,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
+            child: SizedBox(
+              height: 58,
+              child: Stack(
+                children: [
+                  AnimatedAlign(
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment(
+                      currentIndex == 0
+                          ? -1
+                          : currentIndex == 1
+                              ? 0
+                              : 1,
+                      0,
+                    ),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      width: 72,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            _highlightColor,
+                            _highlightColor.withValues(alpha: 0.05),
+                          ],
                         ),
-                      ),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: IosWechatTabItem(
-                              selected: currentIndex == 0,
-                              label: '配置',
-                              onTap: () => onTap(0),
-                              icon: _WechatConfigIcon(
-                                color: currentIndex == 0
-                                    ? _activeColor
-                                    : _inactiveColor,
-                                filled: currentIndex == 0,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: IosWechatTabItem(
-                              selected: currentIndex == 1,
-                              label: '主题',
-                              onTap: () => onTap(1),
-                              icon: _WechatTopicIcon(
-                                color: currentIndex == 1
-                                    ? _activeColor
-                                    : _inactiveColor,
-                                filled: currentIndex == 1,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: IosWechatTabItem(
-                              selected: currentIndex == 2,
-                              label: '消息',
-                              onTap: () => onTap(2),
-                              icon: _WechatMessageIcon(
-                                color: currentIndex == 2
-                                    ? _activeColor
-                                    : _inactiveColor,
-                                filled: currentIndex == 2,
-                              ),
-                            ),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: _highlightGlowColor,
+                            blurRadius: 18,
+                            offset: Offset(0, 6),
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: IosWechatTabItem(
+                          selected: currentIndex == 0,
+                          label: '配置',
+                          onTap: () => onTap(0),
+                          icon: _WechatConfigIcon(
+                            color: currentIndex == 0
+                                ? _activeColor
+                                : _inactiveColor,
+                            filled: currentIndex == 0,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: IosWechatTabItem(
+                          selected: currentIndex == 1,
+                          label: '主题',
+                          onTap: () => onTap(1),
+                          icon: _WechatTopicIcon(
+                            color: currentIndex == 1
+                                ? _activeColor
+                                : _inactiveColor,
+                            filled: currentIndex == 1,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: IosWechatTabItem(
+                          selected: currentIndex == 2,
+                          label: '消息',
+                          onTap: () => onTap(2),
+                          icon: _WechatMessageIcon(
+                            color: currentIndex == 2
+                                ? _activeColor
+                                : _inactiveColor,
+                            filled: currentIndex == 2,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                );
-              },
+                ],
+              ),
             ),
           ),
         ),
@@ -391,6 +400,7 @@ class _BubblePainter extends CustomPainter {
     return oldDelegate.color != color || oldDelegate.filled != filled;
   }
 }
+
 
 
 
