@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +32,7 @@ class MqttApp extends StatefulWidget {
 class _MqttAppState extends State<MqttApp> {
   late final MqttController _controller;
   int _currentIndex = 0;
+  final bool _forceNewTabBarStyleOnAllPlatforms = true;
   final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
 
   @override
@@ -51,9 +53,11 @@ class _MqttAppState extends State<MqttApp> {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        // 仅 iOS 生效；避免引入 dart:io 导致 Web 构建失败。
-        final useIosWechatStyle =
-            !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+        // 预览开关：设为 true 时所有平台都启用新底栏样式，
+        // 方便在 Android/Web/桌面环境下也能直接看到效果。
+        // 默认仅 iOS 生效；如果开启 force 开关则全平台生效。
+        final useIosWechatStyle = _forceNewTabBarStyleOnAllPlatforms ||
+            (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS);
         return MaterialApp(
           navigatorKey: _navKey,
           // title: 'MQTT 客户端',
@@ -108,6 +112,140 @@ class _MainTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final activeColor = Theme.of(context).colorScheme.primary;
     final inactiveColor = Colors.grey;
+
+    if (useIosStyle) {
+      const backgroundColor = Color(0xCC1E1F24);
+      const inactiveColorDark = Color(0xFF8E8E97);
+
+      final tabs = <({
+        String label,
+        IconData activeIcon,
+        IconData inactiveIcon,
+        Color highlightColor,
+      })>[
+        (
+          label: '主页',
+          activeIcon: Icons.home_rounded,
+          inactiveIcon: Icons.home_outlined,
+          highlightColor: const Color(0xFF4DA3FF),
+        ),
+        (
+          label: '收藏',
+          activeIcon: Icons.grid_view_rounded,
+          inactiveIcon: Icons.grid_view_outlined,
+          highlightColor: const Color(0xFF45D4C6),
+        ),
+        (
+          label: 'MQTT',
+          activeIcon: Icons.cloud_done_rounded,
+          inactiveIcon: Icons.cloud_outlined,
+          highlightColor: const Color(0xFF9B74FF),
+        ),
+        (
+          label: '设置',
+          activeIcon: Icons.settings_rounded,
+          inactiveIcon: Icons.settings_outlined,
+          highlightColor: const Color(0xFFFFB65C),
+        ),
+      ];
+
+      final selectedIndex = currentIndex.clamp(0, tabs.length - 1);
+      final selectedColor = tabs[selectedIndex].highlightColor;
+      final indicatorAlignmentX = -1 + (2 * selectedIndex + 1) / tabs.length;
+
+      return SafeArea(
+        top: false,
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                color: backgroundColor,
+                border: Border(
+                  top: BorderSide(color: Color(0x4DFFFFFF), width: 0.5),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x44000000),
+                    blurRadius: 18,
+                    offset: Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                height: 72,
+                child: Stack(
+                  children: [
+                    AnimatedAlign(
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment(indicatorAlignmentX, -0.12),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                        width: 64,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: selectedColor.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: selectedColor.withValues(alpha: 0.28),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    AnimatedAlign(
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment(indicatorAlignmentX, 0.96),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                        width: 24,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: selectedColor,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: selectedColor.withValues(alpha: 0.52),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        for (var i = 0; i < tabs.length; i++)
+                          Expanded(
+                            child: _AnimatedTabButton(
+                              label: tabs[i].label,
+                              selected: currentIndex == i,
+                              icon: currentIndex == i
+                                  ? tabs[i].activeIcon
+                                  : tabs[i].inactiveIcon,
+                              onTap: () => onTap(i),
+                              activeColor: tabs[i].highlightColor,
+                              inactiveColor: inactiveColorDark,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return BottomAppBar(
       height: 64,
       padding: EdgeInsets.zero,
@@ -154,6 +292,73 @@ class _MainTabBar extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AnimatedTabButton extends StatelessWidget {
+  const _AnimatedTabButton({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? activeColor : inactiveColor;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: Colors.white12,
+        highlightColor: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedSlide(
+                offset: selected ? const Offset(0, -0.08) : Offset.zero,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                child: AnimatedScale(
+                  scale: selected ? 1.16 : 1,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutBack,
+                  child: Icon(
+                    icon,
+                    size: 28,
+                    color: color,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 3),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: color,
+                ),
+                child: Text(label),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
