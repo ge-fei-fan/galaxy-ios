@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
-$src = Resolve-Path 'assets/app_icon.png'
-$set = Resolve-Path 'ios/Runner/Assets.xcassets/AppIcon.appiconset'
+$src = Resolve-Path 'C:\Users\geff\Documents\galaxy-ios\assets\app_icon.png'
+$set = Resolve-Path 'C:\Users\geff\Documents\galaxy-ios/ios/Runner/Assets.xcassets/AppIcon.appiconset'
 
 $sizes = @(20, 29, 40, 60, 76, 83.5, 1024)
 $scales = @(1, 2, 3)
