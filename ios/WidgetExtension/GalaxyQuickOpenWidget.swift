@@ -36,15 +36,15 @@ struct GalaxyQuickOpenWidgetView: View {
       VStack(alignment: .leading, spacing: 8) {
         Image(systemName: "paperplane.fill")
           .font(.system(size: 22, weight: .semibold))
-          .foregroundStyle(.white)
+          .foregroundColor(.white)
 
         Text("Galaxy MQTT")
           .font(.system(size: 15, weight: .bold))
-          .foregroundStyle(.white)
+          .foregroundColor(.white)
 
         Text("点击快速打开 App")
           .font(.system(size: 12, weight: .medium))
-          .foregroundStyle(.white.opacity(0.92))
+          .foregroundColor(.white.opacity(0.92))
           .lineLimit(1)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -65,10 +65,4 @@ struct GalaxyQuickOpenWidget: Widget {
     .description("点击后打开 Galaxy App。")
     .supportedFamilies([.systemSmall])
   }
-}
-
-#Preview(as: .systemSmall) {
-  GalaxyQuickOpenWidget()
-} timeline: {
-  GalaxyQuickOpenEntry(date: Date())
 }
