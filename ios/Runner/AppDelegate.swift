@@ -44,6 +44,9 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
   private var clipboardMonitorEnabled = false
   private var clipboardNotifyEnabled = true
   private var clipboardLiveActivityEnabled = false
+  private var shouldKeepRunningInBackground: Bool {
+    isKeepAliveEnabled || clipboardMonitorEnabled
+  }
 #if canImport(ActivityKit)
   /// 当前 MQTT Live Activity
   private var mqttActivity: Any?
@@ -107,14 +110,13 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
   // MARK: - Scene 生命周期转发（由 SceneDelegate 调用）
 
   func handleEnterBackground() {
-    nativeLog("App 进入后台，保活已启用: \(isKeepAliveEnabled)")
-    guard isKeepAliveEnabled else { return }
-    startSilentAudio()
+    nativeLog("App 进入后台，保活开关: \(isKeepAliveEnabled)，剪贴板监听: \(clipboardMonitorEnabled)")
+    refreshBackgroundAudioState(reason: "进入后台")
   }
 
   func handleEnterForeground() {
     nativeLog("App 回到前台")
-    stopSilentAudio()
+    refreshBackgroundAudioState(reason: "回到前台")
   }
 
   // MARK: - Keep Alive Control
@@ -123,12 +125,33 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
     isKeepAliveEnabled = true
     configureAudioSession()
     nativeLog("✅ 保活已启用")
+    refreshBackgroundAudioState(reason: "启用保活")
   }
 
   private func disableKeepAlive() {
     isKeepAliveEnabled = false
-    stopSilentAudio()
     nativeLog("❌ 保活已禁用")
+    refreshBackgroundAudioState(reason: "禁用保活")
+  }
+
+  private func refreshBackgroundAudioState(reason: String) {
+    let appState = UIApplication.shared.applicationState
+    if appState == .background {
+      if shouldKeepRunningInBackground {
+        startSilentAudio()
+        nativeLog("后台保活已开启（原因: \(reason)）")
+      } else {
+        stopSilentAudio()
+        nativeLog("后台保活未开启（原因: \(reason)）")
+      }
+      return
+    }
+
+    // 前台/非后台状态下不需要静音保活，确保及时释放
+    if audioPlayer != nil {
+      stopSilentAudio()
+      nativeLog("当前非后台，已停止静音保活（原因: \(reason)）")
+    }
   }
 
   // MARK: - Audio Session
@@ -267,9 +290,11 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
 
     if clipboardMonitorEnabled {
       startClipboardMonitor()
+      refreshBackgroundAudioState(reason: "开启剪贴板监听")
       result("剪贴板监听已开启")
     } else {
       stopClipboardMonitor()
+      refreshBackgroundAudioState(reason: "关闭剪贴板监听")
       result("剪贴板监听已关闭")
     }
   }
