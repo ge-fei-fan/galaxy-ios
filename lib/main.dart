@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -31,6 +32,8 @@ class MqttApp extends StatefulWidget {
 
 class _MqttAppState extends State<MqttApp> {
   late final MqttController _controller;
+  late final AppLinks _appLinks;
+  StreamSubscription<Uri>? _uriLinkSub;
   int _currentIndex = 0;
   final bool _forceNewTabBarStyleOnAllPlatforms = true;
   final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
@@ -39,13 +42,64 @@ class _MqttAppState extends State<MqttApp> {
   void initState() {
     super.initState();
     _controller = MqttController();
+    _appLinks = AppLinks();
     unawaited(_controller.initialize());
+    unawaited(_initDeepLinks());
   }
 
   @override
   void dispose() {
+    _uriLinkSub?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _initDeepLinks() async {
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleDeepLink(initialUri);
+      }
+    } catch (e) {
+      debugPrint('读取初始 deep link 失败: $e');
+    }
+
+    _uriLinkSub = _appLinks.uriLinkStream.listen(
+      _handleDeepLink,
+      onError: (Object err) {
+        debugPrint('监听 deep link 失败: $err');
+      },
+    );
+  }
+
+  void _handleDeepLink(Uri uri) {
+    if (uri.scheme != 'galaxyios') return;
+
+    final tabName = uri.queryParameters['tab']?.toLowerCase();
+    final targetIndex = _tabIndexFromName(tabName);
+    if (targetIndex == null || targetIndex == _currentIndex || !mounted) return;
+
+    setState(() => _currentIndex = targetIndex);
+  }
+
+  int? _tabIndexFromName(String? tabName) {
+    switch (tabName) {
+      case 'home':
+      case 'index':
+        return 0;
+      case 'collection':
+      case 'favorites':
+      case 'links':
+        return 1;
+      case 'mqtt':
+      case 'profiles':
+        return 2;
+      case 'settings':
+      case 'setting':
+        return 3;
+      default:
+        return null;
+    }
   }
 
   @override

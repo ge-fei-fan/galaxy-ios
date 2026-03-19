@@ -39,6 +39,7 @@ dependencies:
   hive_flutter: ^1.1.0
   mqtt_client: ^10.0.0
   webview_flutter: ^4.13.1
+  app_links: ^6.4.0
 
 dev_dependencies:
   flutter_test:
