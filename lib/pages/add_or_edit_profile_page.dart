@@ -26,6 +26,7 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
   late final TextEditingController _usernameController;
   late final TextEditingController _passwordController;
   bool _useTls = false;
+  bool _enableLiveActivity = false;
 
   @override
   void initState() {
@@ -41,6 +42,7 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
     _usernameController = TextEditingController(text: p?.username ?? '');
     _passwordController = TextEditingController(text: p?.password ?? '');
     _useTls = p?.useTls ?? false;
+    _enableLiveActivity = p?.enableLiveActivity ?? false;
   }
 
   @override
@@ -83,6 +85,7 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
       username: username.isEmpty ? null : username,
       password: password.isEmpty ? null : password,
       keepAliveInBackground: true,
+      enableLiveActivity: _enableLiveActivity,
     );
 
     if (widget.initial == null) {
@@ -162,6 +165,13 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
                 value: _useTls,
                 onChanged: (value) => setState(() => _useTls = value),
                 title: const Text('启用 TLS'),
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                value: _enableLiveActivity,
+                onChanged: (value) => setState(() => _enableLiveActivity = value),
+                title: const Text('启用灵动岛消息展示'),
+                subtitle: const Text('默认关闭；开启后收到 MQTT 消息会更新灵动岛'),
               ),
               const SizedBox(height: 12),
               TextField(

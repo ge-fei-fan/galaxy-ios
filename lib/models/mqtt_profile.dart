@@ -11,6 +11,7 @@ class MqttProfile {
     this.username,
     this.password,
     this.keepAliveInBackground = true,
+    this.enableLiveActivity = false,
   });
 
   final String id;
@@ -24,6 +25,7 @@ class MqttProfile {
   final String? username;
   final String? password;
   final bool keepAliveInBackground;
+  final bool enableLiveActivity;
 
   MqttProfile copyWith({
     String? id,
@@ -37,6 +39,7 @@ class MqttProfile {
     String? username,
     String? password,
     bool? keepAliveInBackground,
+    bool? enableLiveActivity,
   }) {
     return MqttProfile(
       id: id ?? this.id,
@@ -50,6 +53,7 @@ class MqttProfile {
       username: username ?? this.username,
       password: password ?? this.password,
       keepAliveInBackground: keepAliveInBackground ?? this.keepAliveInBackground,
+      enableLiveActivity: enableLiveActivity ?? this.enableLiveActivity,
     );
   }
 
@@ -66,6 +70,7 @@ class MqttProfile {
       'username': username,
       'password': password,
       'keepAliveInBackground': keepAliveInBackground,
+      'enableLiveActivity': enableLiveActivity,
     };
   }
 
@@ -82,6 +87,7 @@ class MqttProfile {
       username: map['username'] as String?,
       password: map['password'] as String?,
       keepAliveInBackground: map['keepAliveInBackground'] as bool? ?? true,
+      enableLiveActivity: map['enableLiveActivity'] as bool? ?? false,
     );
   }
 }

@@ -2,6 +2,19 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
+echo.
+echo ===== 当前本地 Tags =====
+set "HAS_TAG=0"
+for /f "delims=" %%i in ('git tag') do (
+  echo %%i
+  set "HAS_TAG=1"
+)
+if "!HAS_TAG!"=="0" (
+  echo (暂无本地 Tag)
+)
+echo ========================
+echo.
+
 set /p TAG=请输入要推送的 Tag（例如 v1.0.0）：
 if "%TAG%"=="" (
   echo Tag 不能为空。

@@ -211,10 +211,17 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
     let payload = (map["payload"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     let updatedAt = (map["updatedAt"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
       ?? Self.timeFormatter.string(from: Date())
+    let enableLiveActivity = map["enableLiveActivity"] as? Bool ?? false
 
     let limitedPayload = String(payload.prefix(160))
     saveLatestMessageToSharedStore(topic: topic, payload: limitedPayload, updatedAt: updatedAt)
     reloadQuickWidget()
+
+    guard enableLiveActivity else {
+      result("已更新小组件（灵动岛已关闭）")
+      return
+    }
+
     upsertMqttLiveActivity(topic: topic, payload: limitedPayload, updatedAt: updatedAt, result: result)
   }
 

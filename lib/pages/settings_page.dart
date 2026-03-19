@@ -86,6 +86,9 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeProfile = controller.activeProfile;
+    final liveActivityEnabled = activeProfile?.enableLiveActivity ?? false;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -106,6 +109,29 @@ class SettingsPage extends StatelessWidget {
             //   '工具',
             //   style: Theme.of(context).textTheme.titleMedium,
             // ),
+            const SizedBox(height: 12),
+            Card(
+              child: SwitchListTile(
+                value: liveActivityEnabled,
+                onChanged: activeProfile == null
+                    ? null
+                    : (value) async {
+                        final updated = activeProfile.copyWith(
+                          enableLiveActivity: value,
+                        );
+                        await controller.updateProfile(updated);
+                        if (!value) {
+                          await controller.stopDynamicIslandDemo();
+                        }
+                      },
+                title: const Text('启用灵动岛消息展示'),
+                subtitle: Text(
+                  activeProfile == null
+                      ? '请先选择配置'
+                      : '默认关闭。开启后收到 MQTT 消息会在灵动岛显示主题和消息',
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,

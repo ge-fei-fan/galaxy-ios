@@ -400,6 +400,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
   void _listenToMessages() {
     _subscription?.cancel();
     _subscription = _client?.updates?.listen((messages) {
+      final liveActivityEnabled = activeProfile?.enableLiveActivity ?? false;
       for (final msg in messages) {
         final payload = msg.payload as MqttPublishMessage;
         final message = MqttPublishPayload.bytesToStringAsString(
@@ -413,7 +414,12 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
         final list = messagesByTopic.putIfAbsent(msg.topic, () => []);
         list.insert(0, entry);
         _notificationService.showMessage(msg.topic, message);
-        unawaited(_syncIncomingMessageToNative(entry));
+        unawaited(
+          _syncIncomingMessageToNative(
+            entry,
+            enableLiveActivity: liveActivityEnabled,
+          ),
+        );
       }
       _setMessagesForActiveProfile(messagesByTopic);
       _persistMessages();
@@ -638,12 +644,16 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _syncIncomingMessageToNative(MqttMessageEntry entry) async {
+  Future<void> _syncIncomingMessageToNative(
+    MqttMessageEntry entry, {
+    required bool enableLiveActivity,
+  }) async {
     try {
       await _channel.invokeMethod<String>('handleIncomingMqttMessage', {
         'topic': entry.topic,
         'payload': entry.payload,
         'updatedAt': _formatTime(entry.timestamp),
+        'enableLiveActivity': enableLiveActivity,
       });
     } catch (e) {
       _notificationService.log('Flutter: 同步消息到原生失败: $e');
