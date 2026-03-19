@@ -27,7 +27,12 @@ jobs:
         run: flutter pub get
 
       - name: Build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
+        run: flutter build ios --no-codesign
+
+      - name: Verify widget extension is embedded
+        run: |
+          ls -la build/ios/iphoneos/Runner.app
+          test -d build/ios/iphoneos/Runner.app/PlugIns/WidgetExtension.appex
 
       - name: Create IPA
         run: |

@@ -37,3 +37,12 @@
 3. 点击小组件，确认能拉起 App 并切换到指定 tab
 
 > TrollStore 场景下若新装后暂时看不到小组件：可尝试重启 SpringBoard 或卸载重装一次。
+
+## CI / GitHub Actions 说明
+
+本仓库工作流已补充两点：
+
+1. `flutter build ios --no-codesign`（当前 Flutter 版本下 `--release` 不是有效参数）
+2. 构建后校验：`Runner.app/PlugIns/WidgetExtension.appex` 必须存在，否则工作流失败
+
+你如果在 TrollStore 安装后仍然看不到小组件，优先检查发布日志里是否通过了这一步嵌入校验。
