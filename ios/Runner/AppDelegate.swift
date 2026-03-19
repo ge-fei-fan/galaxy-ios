@@ -39,6 +39,11 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
   private let sharedPayloadKey = "latest_payload"
   private let sharedUpdatedAtKey = "latest_updated_at"
   private let quickWidgetKind = "GalaxyQuickOpenWidget"
+  private var clipboardMonitorTimer: Timer?
+  private var clipboardLastSeenText: String?
+  private var clipboardMonitorEnabled = false
+  private var clipboardNotifyEnabled = true
+  private var clipboardLiveActivityEnabled = false
 #if canImport(ActivityKit)
   /// 当前 MQTT Live Activity
   private var mqttActivity: Any?
@@ -75,6 +80,8 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
         self.handleIncomingMqttMessage(call.arguments, result: result)
       case "endMqttLiveActivity":
         self.endMqttLiveActivity(result: result)
+      case "setClipboardMonitorEnabled":
+        self.setClipboardMonitorEnabled(call.arguments, result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -245,6 +252,82 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
     formatter.dateFormat = "HH:mm:ss"
     return formatter
   }()
+
+  // MARK: - Clipboard Monitor
+
+  private func setClipboardMonitorEnabled(_ arguments: Any?, result: @escaping FlutterResult) {
+    guard let map = arguments as? [String: Any] else {
+      result("参数格式错误")
+      return
+    }
+
+    clipboardMonitorEnabled = map["enabled"] as? Bool ?? false
+    clipboardNotifyEnabled = map["notifyOnClipboardChange"] as? Bool ?? true
+    clipboardLiveActivityEnabled = map["enableLiveActivity"] as? Bool ?? false
+
+    if clipboardMonitorEnabled {
+      startClipboardMonitor()
+      result("剪贴板监听已开启")
+    } else {
+      stopClipboardMonitor()
+      result("剪贴板监听已关闭")
+    }
+  }
+
+  private func startClipboardMonitor() {
+    guard clipboardMonitorTimer == nil else { return }
+    clipboardLastSeenText = UIPasteboard.general.string
+    clipboardMonitorTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+      self?.pollClipboardIfNeeded()
+    }
+    RunLoop.main.add(clipboardMonitorTimer!, forMode: .common)
+    nativeLog("剪贴板监听定时器已启动")
+  }
+
+  private func stopClipboardMonitor() {
+    clipboardMonitorTimer?.invalidate()
+    clipboardMonitorTimer = nil
+    nativeLog("剪贴板监听定时器已停止")
+  }
+
+  private func pollClipboardIfNeeded() {
+    guard clipboardMonitorEnabled else { return }
+    let currentText = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let currentText, !currentText.isEmpty else { return }
+    guard currentText != clipboardLastSeenText else { return }
+    clipboardLastSeenText = currentText
+
+    let preview = String(currentText.prefix(160))
+    let updatedAt = Self.timeFormatter.string(from: Date())
+    saveLatestMessageToSharedStore(topic: "clipboard/new", payload: preview, updatedAt: updatedAt)
+    reloadQuickWidget()
+
+    if clipboardNotifyEnabled {
+      sendClipboardLocalNotification(content: preview)
+    }
+
+    guard clipboardLiveActivityEnabled else {
+      nativeLog("剪贴板新内容已捕获（灵动岛关闭）")
+      return
+    }
+
+    upsertMqttLiveActivity(topic: "clipboard/new", payload: preview, updatedAt: updatedAt) { _ in }
+  }
+
+  private func sendClipboardLocalNotification(content: String) {
+    guard #available(iOS 10.0, *) else { return }
+    let notificationContent = UNMutableNotificationContent()
+    notificationContent.title = "检测到新复制内容"
+    notificationContent.body = content
+    notificationContent.sound = .default
+
+    let request = UNNotificationRequest(
+      identifier: "clipboard_\(Int(Date().timeIntervalSince1970))",
+      content: notificationContent,
+      trigger: nil
+    )
+    UNUserNotificationCenter.current().add(request)
+  }
 
   // MARK: - Dynamic Island / Live Activity Demo
 

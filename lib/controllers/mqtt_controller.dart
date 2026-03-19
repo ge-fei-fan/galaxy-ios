@@ -25,6 +25,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
 
   bool connected = false;
   String status = '未连接';
+  bool clipboardMonitorEnabled = false;
 
   List<MqttProfile> profiles = [];
   String? activeProfileId;
@@ -62,6 +63,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     });
 
     _loadProfilesWithMigration();
+    _loadFeatureSettings();
     _loadTopics();
     _loadMessages();
     _syncActiveProfileData();
@@ -71,10 +73,16 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     // 延迟一点时间再同步保活状态给原生，确保原生 MethodChannel 已准备完毕
     Future.delayed(const Duration(milliseconds: 500), () {
       _syncKeepAliveStateToNative();
+      _syncClipboardMonitorStateToNative();
     });
 
     initialized = true;
     notifyListeners();
+  }
+
+  void _loadFeatureSettings() {
+    clipboardMonitorEnabled =
+        _settingsBox.get('clipboardMonitorEnabled') as bool? ?? false;
   }
 
   void _loadProfilesWithMigration() {
@@ -168,11 +176,13 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
       }
       // 回到前台时，也同步一次保活状态以防止原生状态丢失
       unawaited(_syncKeepAliveStateToNative());
+      unawaited(_syncClipboardMonitorStateToNative());
     } else if (state == AppLifecycleState.hidden ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       // 在应用即将被挂起/进入后台时，再强行同步一次状态给原生
       unawaited(_syncKeepAliveStateToNative());
+      unawaited(_syncClipboardMonitorStateToNative());
     }
   }
 
@@ -192,11 +202,36 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _syncClipboardMonitorStateToNative() async {
+    try {
+      final liveActivityEnabled = activeProfile?.enableLiveActivity ?? false;
+      await _channel.invokeMethod('setClipboardMonitorEnabled', {
+        'enabled': clipboardMonitorEnabled,
+        'enableLiveActivity': liveActivityEnabled,
+        'notifyOnClipboardChange': true,
+      });
+      _notificationService.log(
+        'Flutter: 剪贴板监听${clipboardMonitorEnabled ? "已启用" : "已禁用"}，灵动岛${liveActivityEnabled ? "开启" : "关闭"}',
+      );
+    } catch (e) {
+      _notificationService.log('Flutter: 同步剪贴板监听状态失败: $e');
+    }
+  }
+
+  Future<void> setClipboardMonitorEnabled(bool enabled) async {
+    if (clipboardMonitorEnabled == enabled) return;
+    clipboardMonitorEnabled = enabled;
+    await _settingsBox.put('clipboardMonitorEnabled', enabled);
+    await _syncClipboardMonitorStateToNative();
+    notifyListeners();
+  }
+
   Future<void> addProfile(MqttProfile profile) async {
     profiles = [...profiles, profile];
     activeProfileId = profile.id;
     await _persistProfiles();
     await _syncKeepAliveStateToNative();
+    await _syncClipboardMonitorStateToNative();
     _syncActiveProfileData();
     notifyListeners();
   }
@@ -205,6 +240,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     profiles = profiles.map((p) => p.id == profile.id ? profile : p).toList();
     await _persistProfiles();
     await _syncKeepAliveStateToNative();
+    await _syncClipboardMonitorStateToNative();
     _syncActiveProfileData();
     notifyListeners();
   }
@@ -224,6 +260,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     await _persistTopics();
     await _persistMessages();
     await _syncKeepAliveStateToNative();
+    await _syncClipboardMonitorStateToNative();
     _syncActiveProfileData();
     notifyListeners();
   }
@@ -236,6 +273,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     activeProfileId = id;
     await _profilesBox.put('activeProfileId', activeProfileId);
     await _syncKeepAliveStateToNative();
+    await _syncClipboardMonitorStateToNative();
     _syncActiveProfileData();
     notifyListeners();
   }

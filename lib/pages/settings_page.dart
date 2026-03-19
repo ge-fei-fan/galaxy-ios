@@ -88,6 +88,7 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final activeProfile = controller.activeProfile;
     final liveActivityEnabled = activeProfile?.enableLiveActivity ?? false;
+    final clipboardEnabled = controller.clipboardMonitorEnabled;
 
     return Scaffold(
       body: SafeArea(
@@ -109,6 +110,17 @@ class SettingsPage extends StatelessWidget {
             //   '工具',
             //   style: Theme.of(context).textTheme.titleMedium,
             // ),
+            const SizedBox(height: 12),
+            Card(
+              child: SwitchListTile(
+                value: clipboardEnabled,
+                onChanged: (value) async {
+                  await controller.setClipboardMonitorEnabled(value);
+                },
+                title: const Text('启用剪贴板监听'),
+                subtitle: const Text('默认关闭。检测到新复制内容后会触发通知并可更新灵动岛'),
+              ),
+            ),
             const SizedBox(height: 12),
             Card(
               child: SwitchListTile(
@@ -139,38 +151,6 @@ class SettingsPage extends StatelessWidget {
                 onPressed: () => _showDebugLogs(context),
                 icon: const Icon(Icons.bug_report_outlined),
                 label: const Text('查看日志'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  final result = await controller.startDynamicIslandDemo();
-                  if (!context.mounted) return;
-                  messenger.showSnackBar(
-                    SnackBar(content: Text(result)),
-                  );
-                },
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('测试灵动岛（开始）'),
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  final result = await controller.stopDynamicIslandDemo();
-                  if (!context.mounted) return;
-                  messenger.showSnackBar(
-                    SnackBar(content: Text(result)),
-                  );
-                },
-                icon: const Icon(Icons.stop_circle_outlined),
-                label: const Text('测试灵动岛（结束）'),
               ),
             ),
           ],
