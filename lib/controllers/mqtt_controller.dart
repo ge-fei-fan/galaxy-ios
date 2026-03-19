@@ -322,6 +322,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     _client?.disconnect();
     connected = false;
     status = '已断开';
+    unawaited(_endMqttLiveActivity());
     notifyListeners();
   }
 
@@ -412,6 +413,7 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
         final list = messagesByTopic.putIfAbsent(msg.topic, () => []);
         list.insert(0, entry);
         _notificationService.showMessage(msg.topic, message);
+        unawaited(_syncIncomingMessageToNative(entry));
       }
       _setMessagesForActiveProfile(messagesByTopic);
       _persistMessages();
@@ -634,6 +636,34 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
       _notificationService.log('Flutter: $message');
       return message;
     }
+  }
+
+  Future<void> _syncIncomingMessageToNative(MqttMessageEntry entry) async {
+    try {
+      await _channel.invokeMethod<String>('handleIncomingMqttMessage', {
+        'topic': entry.topic,
+        'payload': entry.payload,
+        'updatedAt': _formatTime(entry.timestamp),
+      });
+    } catch (e) {
+      _notificationService.log('Flutter: 同步消息到原生失败: $e');
+    }
+  }
+
+  Future<void> _endMqttLiveActivity() async {
+    try {
+      await _channel.invokeMethod<String>('endMqttLiveActivity');
+    } catch (e) {
+      _notificationService.log('Flutter: 结束灵动岛活动失败: $e');
+    }
+  }
+
+  String _formatTime(DateTime time) {
+    final t = time.toLocal();
+    final hh = t.hour.toString().padLeft(2, '0');
+    final mm = t.minute.toString().padLeft(2, '0');
+    final ss = t.second.toString().padLeft(2, '0');
+    return '$hh:$mm:$ss';
   }
 }
 

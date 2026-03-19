@@ -2,15 +2,20 @@ import Flutter
 import UIKit
 import UserNotifications
 import AVFoundation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 #if canImport(ActivityKit)
 import ActivityKit
 #endif
 
 #if canImport(ActivityKit)
 @available(iOS 16.1, *)
-struct GalaxyDemoAttributes: ActivityAttributes {
+struct GalaxyMqttActivityAttributes: ActivityAttributes {
   public struct ContentState: Codable, Hashable {
-    var statusText: String
+    var topic: String
+    var payloadPreview: String
+    var updatedAt: String
   }
 
   var title: String
@@ -28,9 +33,15 @@ struct GalaxyDemoAttributes: ActivityAttributes {
   private var isKeepAliveEnabled = false
   /// MethodChannel 引用
   private var methodChannel: FlutterMethodChannel?
+  /// App Group（用于 App 与 Widget 共享最新 MQTT 数据）
+  private let appGroupId = "group.com.example.galaxyIos"
+  private let sharedTopicKey = "latest_topic"
+  private let sharedPayloadKey = "latest_payload"
+  private let sharedUpdatedAtKey = "latest_updated_at"
+  private let quickWidgetKind = "GalaxyQuickOpenWidget"
 #if canImport(ActivityKit)
-  /// 当前演示 Live Activity
-  private var demoActivity: Any?
+  /// 当前 MQTT Live Activity
+  private var mqttActivity: Any?
 #endif
 
   // MARK: - Logging
@@ -60,6 +71,10 @@ struct GalaxyDemoAttributes: ActivityAttributes {
         self.startDynamicIslandDemo(result: result)
       case "stopDynamicIslandDemo":
         self.stopDynamicIslandDemo(result: result)
+      case "handleIncomingMqttMessage":
+        self.handleIncomingMqttMessage(call.arguments, result: result)
+      case "endMqttLiveActivity":
+        self.endMqttLiveActivity(result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -184,66 +199,58 @@ struct GalaxyDemoAttributes: ActivityAttributes {
     nativeLog("静音音频已停止")
   }
 
-  // MARK: - Dynamic Island / Live Activity Demo
+  // MARK: - MQTT -> Widget + Live Activity
 
-  private func startDynamicIslandDemo(result: @escaping FlutterResult) {
-#if canImport(ActivityKit)
-    guard #available(iOS 16.1, *) else {
-      let msg = "当前系统低于 iOS 16.1，无法启动 Live Activity"
-      nativeLog(msg)
-      result(msg)
+  private func handleIncomingMqttMessage(_ arguments: Any?, result: @escaping FlutterResult) {
+    guard let map = arguments as? [String: Any] else {
+      result("参数格式错误")
       return
     }
 
-    if demoActivity != nil {
-      let msg = "灵动岛演示已在运行中"
-      nativeLog(msg)
-      result(msg)
-      return
-    }
+    let topic = (map["topic"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    let payload = (map["payload"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    let updatedAt = (map["updatedAt"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+      ?? Self.timeFormatter.string(from: Date())
 
-    guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-      let msg = "系统未开启 Live Activity（请检查系统设置）"
-      nativeLog(msg)
-      result(msg)
-      return
-    }
+    let limitedPayload = String(payload.prefix(160))
+    saveLatestMessageToSharedStore(topic: topic, payload: limitedPayload, updatedAt: updatedAt)
+    reloadQuickWidget()
+    upsertMqttLiveActivity(topic: topic, payload: limitedPayload, updatedAt: updatedAt, result: result)
+  }
 
-    let attributes = GalaxyDemoAttributes(title: "Galaxy Demo")
-    let state = GalaxyDemoAttributes.ContentState(statusText: "正在测试灵动岛")
+  private func saveLatestMessageToSharedStore(topic: String, payload: String, updatedAt: String) {
+    let defaults = UserDefaults(suiteName: appGroupId) ?? UserDefaults.standard
+    defaults.set(topic, forKey: sharedTopicKey)
+    defaults.set(payload, forKey: sharedPayloadKey)
+    defaults.set(updatedAt, forKey: sharedUpdatedAtKey)
+  }
 
-    do {
-      let activity: Activity<GalaxyDemoAttributes>
-      if #available(iOS 16.2, *) {
-        activity = try Activity<GalaxyDemoAttributes>.request(
-          attributes: attributes,
-          content: ActivityContent(state: state, staleDate: nil),
-          pushType: nil
-        )
-      } else {
-        activity = try Activity<GalaxyDemoAttributes>.request(
-          attributes: attributes,
-          contentState: state,
-          pushType: nil
-        )
-      }
-      demoActivity = activity
-      let msg = "已启动 Live Activity（支持机型会显示在灵动岛/锁屏）"
-      nativeLog("\(msg)，id=\(activity.id)")
-      result(msg)
-    } catch {
-      let msg = "启动 Live Activity 失败: \(error.localizedDescription)"
-      nativeLog(msg)
-      result(msg)
+  private func reloadQuickWidget() {
+#if canImport(WidgetKit)
+    if #available(iOS 14.0, *) {
+      WidgetCenter.shared.reloadTimelines(ofKind: quickWidgetKind)
     }
-#else
-    let msg = "当前构建环境不支持 ActivityKit，无法启动 Live Activity"
-    nativeLog(msg)
-    result(msg)
 #endif
   }
 
+  private static let timeFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "HH:mm:ss"
+    return formatter
+  }()
+
+  // MARK: - Dynamic Island / Live Activity Demo
+
+  private func startDynamicIslandDemo(result: @escaping FlutterResult) {
+    let updatedAt = Self.timeFormatter.string(from: Date())
+    upsertMqttLiveActivity(topic: "demo/topic", payload: "正在测试灵动岛消息展示", updatedAt: updatedAt, result: result)
+  }
+
   private func stopDynamicIslandDemo(result: @escaping FlutterResult) {
+    endMqttLiveActivity(result: result)
+  }
+
+  private func endMqttLiveActivity(result: @escaping FlutterResult) {
 #if canImport(ActivityKit)
     guard #available(iOS 16.1, *) else {
       let msg = "当前系统低于 iOS 16.1，无需结束 Live Activity"
@@ -252,7 +259,7 @@ struct GalaxyDemoAttributes: ActivityAttributes {
       return
     }
 
-    guard let activity = demoActivity as? Activity<GalaxyDemoAttributes> else {
+    guard let activity = mqttActivity as? Activity<GalaxyMqttActivityAttributes> else {
       let msg = "当前没有运行中的灵动岛演示"
       nativeLog(msg)
       result(msg)
@@ -260,7 +267,11 @@ struct GalaxyDemoAttributes: ActivityAttributes {
     }
 
     Task {
-      let finalState = GalaxyDemoAttributes.ContentState(statusText: "演示已结束")
+      let finalState = GalaxyMqttActivityAttributes.ContentState(
+        topic: "MQTT",
+        payloadPreview: "监听已结束",
+        updatedAt: Self.timeFormatter.string(from: Date())
+      )
       if #available(iOS 16.2, *) {
         await activity.end(
           ActivityContent(state: finalState, staleDate: nil),
@@ -272,7 +283,7 @@ struct GalaxyDemoAttributes: ActivityAttributes {
           dismissalPolicy: .immediate
         )
       }
-      self.demoActivity = nil
+      self.mqttActivity = nil
       let msg = "已结束 Live Activity 演示"
       self.nativeLog(msg)
       result(msg)
@@ -281,6 +292,70 @@ struct GalaxyDemoAttributes: ActivityAttributes {
     let msg = "当前构建环境不支持 ActivityKit"
     nativeLog(msg)
     result(msg)
+#endif
+  }
+
+  private func upsertMqttLiveActivity(
+    topic: String,
+    payload: String,
+    updatedAt: String,
+    result: @escaping FlutterResult
+  ) {
+#if canImport(ActivityKit)
+    guard #available(iOS 16.1, *) else {
+      result("当前系统低于 iOS 16.1，跳过 Live Activity")
+      return
+    }
+
+    guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+      result("系统未开启 Live Activity")
+      return
+    }
+
+    let safeTopic = topic.isEmpty ? "(无主题)" : String(topic.prefix(64))
+    let safePayload = payload.isEmpty ? "(空消息)" : String(payload.prefix(160))
+    let state = GalaxyMqttActivityAttributes.ContentState(
+      topic: safeTopic,
+      payloadPreview: safePayload,
+      updatedAt: updatedAt
+    )
+
+    if let activity = mqttActivity as? Activity<GalaxyMqttActivityAttributes> {
+      Task {
+        if #available(iOS 16.2, *) {
+          await activity.update(ActivityContent(state: state, staleDate: nil))
+        } else {
+          await activity.update(using: state)
+        }
+        result("已更新 Live Activity")
+      }
+      return
+    }
+
+    do {
+      let attributes = GalaxyMqttActivityAttributes(title: "MQTT 最新消息")
+      let activity: Activity<GalaxyMqttActivityAttributes>
+      if #available(iOS 16.2, *) {
+        activity = try Activity<GalaxyMqttActivityAttributes>.request(
+          attributes: attributes,
+          content: ActivityContent(state: state, staleDate: nil),
+          pushType: nil
+        )
+      } else {
+        activity = try Activity<GalaxyMqttActivityAttributes>.request(
+          attributes: attributes,
+          contentState: state,
+          pushType: nil
+        )
+      }
+      mqttActivity = activity
+      nativeLog("已启动 MQTT Live Activity，id=\(activity.id)")
+      result("已启动 Live Activity")
+    } catch {
+      result("启动 Live Activity 失败: \(error.localizedDescription)")
+    }
+#else
+    result("当前构建环境不支持 ActivityKit")
 #endif
   }
 
