@@ -177,7 +177,7 @@ class _EmptyState extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(
-                Icons.bookmark_border,
+                Icons.grid_view_rounded,
                 color: Color(0xFF5B7BFF),
                 size: 30,
               ),
@@ -217,6 +217,9 @@ class _LinkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final iconBg = const Color(0xFFEAF0FF);
+    final iconColor = const Color(0xFF5B7BFF);
+
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -231,7 +234,10 @@ class _LinkCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              _ThumbnailBox(title: link.title),
+              _ThumbnailBox(
+                backgroundColor: iconBg,
+                iconColor: iconColor,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -291,41 +297,28 @@ class _LinkCard extends StatelessWidget {
 }
 
 class _ThumbnailBox extends StatelessWidget {
-  const _ThumbnailBox({required this.title});
+  const _ThumbnailBox({
+    required this.backgroundColor,
+    required this.iconColor,
+  });
 
-  final String title;
+  final Color backgroundColor;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
-    final colors = [
-      const Color(0xFF7A8BFF),
-      const Color(0xFF8BC6FF),
-      const Color(0xFF9B8DFF),
-      const Color(0xFF6EC7C7),
-    ];
-    final color = colors[title.hashCode.abs() % colors.length];
     return Container(
       width: 52,
       height: 52,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withValues(alpha: 0.95),
-            color.withValues(alpha: 0.65),
-          ],
-        ),
+        color: backgroundColor,
       ),
       alignment: Alignment.center,
-      child: Text(
-        title.isNotEmpty ? title.characters.first.toUpperCase() : 'W',
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-          fontSize: 18,
-        ),
+      child: Icon(
+        Icons.grid_view_rounded,
+        color: iconColor,
+        size: 26,
       ),
     );
   }
