@@ -33,8 +33,10 @@ class MqttApp extends StatefulWidget {
 class _MqttAppState extends State<MqttApp> {
   late final MqttController _controller;
   late final AppLinks _appLinks;
+  late final Box _settingsBox;
   StreamSubscription<Uri>? _uriLinkSub;
   int _currentIndex = 0;
+  ThemeMode _themeMode = ThemeMode.light;
   final bool _forceNewTabBarStyleOnAllPlatforms = true;
   final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
 
@@ -43,8 +45,19 @@ class _MqttAppState extends State<MqttApp> {
     super.initState();
     _controller = MqttController();
     _appLinks = AppLinks();
+    _settingsBox = Hive.box('settings');
+    final storedTheme = _settingsBox.get('appThemeMode') as String?;
+    if (storedTheme == 'dark') {
+      _themeMode = ThemeMode.dark;
+    }
     unawaited(_controller.initialize());
     unawaited(_initDeepLinks());
+  }
+
+  Future<void> _setThemeMode(ThemeMode mode) async {
+    if (_themeMode == mode) return;
+    setState(() => _themeMode = mode);
+    await _settingsBox.put('appThemeMode', mode == ThemeMode.dark ? 'dark' : 'light');
   }
 
   @override
@@ -117,11 +130,25 @@ class _MqttAppState extends State<MqttApp> {
           // title: 'MQTT 客户端',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+            scaffoldBackgroundColor: const Color(0xFFF2F1F6),
             useMaterial3: true,
             appBarTheme: const AppBarTheme(
               toolbarHeight: 44,
             ),
           ),
+          darkTheme: ThemeData(
+            brightness: Brightness.dark,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.indigo,
+              brightness: Brightness.dark,
+            ),
+            scaffoldBackgroundColor: const Color(0xFF101114),
+            useMaterial3: true,
+            appBarTheme: const AppBarTheme(
+              toolbarHeight: 44,
+            ),
+          ),
+          themeMode: _themeMode,
           home: Scaffold(
             body: _controller.initialized
                 ? IndexedStack(
@@ -130,7 +157,11 @@ class _MqttAppState extends State<MqttApp> {
                       const HomePage(),
                       const UrlCollectionPage(),
                       ProfilesPage(controller: _controller),
-                      SettingsPage(controller: _controller),
+                      SettingsPage(
+                        controller: _controller,
+                        isDarkMode: _themeMode == ThemeMode.dark,
+                        onThemeModeChanged: _setThemeMode,
+                      ),
                     ],
                   )
                 : const Center(child: CircularProgressIndicator()),

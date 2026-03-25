@@ -40,11 +40,12 @@ class _MqttDetailPageState extends State<MqttDetailPage>
   Widget build(BuildContext context) {
     final topics = widget.controller.topics;
     final topicSummary = topics.isEmpty ? '暂无主题' : topics.join('、');
+    const pageBackground = Color(0xFFF2F1F6);
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F6),
+      backgroundColor: pageBackground,
       appBar: AppBar(
         title: Text(widget.profile.name),
-        backgroundColor: const Color(0xFFF4F4F6),
+        backgroundColor: pageBackground,
         elevation: 0,
       ),
       body: Column(
@@ -52,7 +53,7 @@ class _MqttDetailPageState extends State<MqttDetailPage>
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            color: const Color(0xFFF4F4F6),
+            color: pageBackground,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

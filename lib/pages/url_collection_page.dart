@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:galaxy_ios/models/saved_link.dart';
+import 'package:galaxy_ios/widgets/page_header.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class UrlCollectionPage extends StatefulWidget {
@@ -98,35 +99,24 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
 
   @override
   Widget build(BuildContext context) {
-    const pageBackground = Color(0xFFEFEFF2);
+    const pageBackground = Color(0xFFF2F1F6);
     return Scaffold(
       backgroundColor: pageBackground,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      '收藏',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
-                        height: 1.05,
-                      ),
-                    ),
-                  ),
-                  _CapsuleActionButton(
-                    label: '新增',
-                    icon: Icons.add_rounded,
-                    onPressed: _openAddDialog,
-                  ),
-                ],
+              AppPageTitle(
+                title: '收藏',
+                trailing: HeaderCircleIconButton(
+                  icon: Icons.add_rounded,
+                  iconSize: 30,
+                  onTap: _openAddDialog,
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 20),
               Expanded(
                 child: _links.isEmpty
                     ? const _EmptyState()
@@ -319,62 +309,6 @@ class _ThumbnailBox extends StatelessWidget {
         Icons.grid_view_rounded,
         color: iconColor,
         size: 26,
-      ),
-    );
-  }
-}
-
-class _CapsuleActionButton extends StatelessWidget {
-  const _CapsuleActionButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onPressed,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFF8B7DFF),
-                Color(0xFF4EA7FF),
-              ],
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x3D5A7BFF),
-                blurRadius: 12,
-                offset: Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: Colors.white),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

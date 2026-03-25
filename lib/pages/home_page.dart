@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:galaxy_ios/widgets/page_header.dart';
+
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -10,17 +12,16 @@ class HomePage extends StatelessWidget {
       top: true,
       bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+        padding: const EdgeInsets.fromLTRB(22, 14, 22, 20),
         children: [
-          const Text(
-            '首页',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w700,
-              height: 1.05,
+          AppPageTitle(
+            title: '首页',
+            trailing: HeaderCircleIconButton(
+              icon: Icons.person_2_outlined,
+              onTap: () {},
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 30),
           Row(
             children: [
               Expanded(

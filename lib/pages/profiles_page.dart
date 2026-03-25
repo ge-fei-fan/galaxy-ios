@@ -4,6 +4,7 @@ import 'package:galaxy_ios/controllers/mqtt_controller.dart';
 import 'package:galaxy_ios/models/mqtt_profile.dart';
 import 'package:galaxy_ios/pages/add_or_edit_profile_page.dart';
 import 'package:galaxy_ios/pages/mqtt_detail_page.dart';
+import 'package:galaxy_ios/widgets/page_header.dart';
 
 class ProfilesPage extends StatelessWidget {
   const ProfilesPage({super.key, required this.controller});
@@ -39,8 +40,7 @@ class ProfilesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = controller.activeProfile;
-    const pageBg = Color(0xFFE9ECF2);
-    const titleColor = Color(0xFF1F2558);
+    const pageBg = Color(0xFFF2F1F6);
 
     return Container(
       color: pageBg,
@@ -48,45 +48,19 @@ class ProfilesPage extends StatelessWidget {
         top: true,
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'mqtt客户端',
-                      style: TextStyle(
-                        fontSize: 32,
-                        color: titleColor,
-                        fontWeight: FontWeight.w700,
-                        height: 1.05,
-                      ),
-                    ),
-                  ),
-                  Material(
-                    color: Colors.white,
-                    elevation: 1.5,
-                    shadowColor: const Color(0x22000000),
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => _openAdd(context),
-                      child: const SizedBox(
-                        width: 58,
-                        height: 58,
-                        child: Icon(
-                          Icons.playlist_add_rounded,
-                          color: titleColor,
-                          size: 30,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              AppPageTitle(
+                title: 'mqtt客户端',
+                trailing: HeaderCircleIconButton(
+                  icon: Icons.playlist_add_rounded,
+                  iconSize: 30,
+                  onTap: () => _openAdd(context),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               if (active != null)
                 _MqttConnectionCard(
                   active: active,
@@ -110,46 +84,46 @@ class ProfilesPage extends StatelessWidget {
                   ),
                   child: const Text('暂无可用配置，请点击右上角新增 MQTT 配置'),
                 ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x12000000),
-                      blurRadius: 10,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'MQTT配置列表',
-                        style: TextStyle(
-                          color: titleColor,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '共 ${controller.profiles.length} 个配置',
-                      style: const TextStyle(
-                        color: Color(0xFF7A7C93),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // const SizedBox(height: 12),
+              // Container(
+              //   width: double.infinity,
+              //   padding: const EdgeInsets.symmetric(
+              //     horizontal: 16,
+              //     vertical: 14,
+              //   ),
+              //   decoration: BoxDecoration(
+              //     color: Colors.white,
+              //     borderRadius: BorderRadius.circular(20),
+              //     boxShadow: const [
+              //       BoxShadow(
+              //         color: Color(0x12000000),
+              //         blurRadius: 10,
+              //         offset: Offset(0, 2),
+              //       ),
+              //     ],
+              //   ),
+              //   child: Row(
+              //     children: [
+              //       const Expanded(
+              //         child: Text(
+              //           'MQTT配置列表',
+              //           style: TextStyle(
+              //             color: titleColor,
+              //             fontSize: 20,
+              //             fontWeight: FontWeight.w700,
+              //           ),
+              //         ),
+              //       ),
+              //       Text(
+              //         '共 ${controller.profiles.length} 个配置',
+              //         style: const TextStyle(
+              //           color: Color(0xFF7A7C93),
+              //           fontWeight: FontWeight.w600,
+              //         ),
+              //       ),
+              //     ],
+              //   ),
+              // ),
               const SizedBox(height: 10),
               Expanded(
                 child: ListView.separated(
