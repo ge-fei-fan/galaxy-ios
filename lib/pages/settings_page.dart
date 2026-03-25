@@ -92,7 +92,7 @@ class SettingsPage extends StatelessWidget {
                     child: Text(
                       '其他',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 12,
                         color: sectionTitleColor,
                         fontWeight: FontWeight.w400,
                         letterSpacing: 0.2,
@@ -188,7 +188,7 @@ class _ThemeRow extends StatelessWidget {
             const Expanded(
               child: Text(
                 '主题',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w400),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
               ),
             ),
             Container(
@@ -243,7 +243,7 @@ class _GeneralRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   '通用',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w400),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
                 ),
               ),
               Icon(Icons.chevron_right_rounded, size: 28),
@@ -280,7 +280,7 @@ class _LogsRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   '日志',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w400),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
                 ),
               ),
               Icon(Icons.chevron_right_rounded, size: 28),
