@@ -2,6 +2,8 @@ import Flutter
 import UIKit
 import UserNotifications
 import AVFoundation
+import Network
+import Darwin
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -33,6 +35,7 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
   private var isKeepAliveEnabled = false
   /// MethodChannel 引用
   private var methodChannel: FlutterMethodChannel?
+  private let deviceStatusCollector = DeviceStatusCollector()
   /// App Group（用于 App 与 Widget 共享最新 MQTT 数据）
   private let appGroupId = "group.com.example.galaxyIos"
   private let sharedTopicKey = "latest_topic"
@@ -85,6 +88,8 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
         self.endMqttLiveActivity(result: result)
       case "setClipboardMonitorEnabled":
         self.setClipboardMonitorEnabled(call.arguments, result: result)
+      case "getDeviceStatusSnapshot":
+        result(self.deviceStatusCollector.snapshot())
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -239,8 +244,8 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
 
     let topic = (map["topic"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     let payload = (map["payload"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-    let updatedAt = (map["updatedAt"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-      ?? Self.timeFormatter.string(from: Date())
+    let updatedAt = ((map["updatedAt"] as? String)?
+      .trimmingCharacters(in: .whitespacesAndNewlines)) ?? Self.timeFormatter.string(from: Date())
     let enableLiveActivity = map["enableLiveActivity"] as? Bool ?? false
 
     let limitedPayload = String(payload.prefix(160))
@@ -483,5 +488,251 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
     completionHandler([.banner, .list, .sound, .badge])
+  }
+}
+
+final class DeviceStatusCollector {
+  private let pathMonitor = NWPathMonitor()
+  private let pathQueue = DispatchQueue(label: "com.galaxy.device_status.path")
+
+  private var networkConnected = false
+  private var networkType = "未知网络"
+
+  private var lastRxBytes: UInt64?
+  private var lastTxBytes: UInt64?
+  private var lastSampleTime: TimeInterval?
+
+  init() {
+    pathMonitor.pathUpdateHandler = { [weak self] path in
+      guard let self else { return }
+      self.networkConnected = path.status == .satisfied
+      if path.usesInterfaceType(.wifi) {
+        self.networkType = "WiFi"
+      } else if path.usesInterfaceType(.cellular) {
+        self.networkType = "蜂窝网络"
+      } else if path.usesInterfaceType(.wiredEthernet) {
+        self.networkType = "有线网络"
+      } else {
+        self.networkType = "网络"
+      }
+    }
+    pathMonitor.start(queue: pathQueue)
+  }
+
+  func snapshot() -> [String: Any] {
+    UIDevice.current.isBatteryMonitoringEnabled = true
+
+    let now = Date()
+    let nowTs = now.timeIntervalSince1970
+    let uptime = ProcessInfo.processInfo.systemUptime
+    let bootAt = Date(timeInterval: -uptime, since: now)
+
+    let memoryTotalBytes = Int64(ProcessInfo.processInfo.physicalMemory)
+    let memoryUsedBytes = currentAppMemoryUsageBytes()
+    let cpuUsagePercent = currentProcessCpuUsagePercent()
+
+    let storageInfo = fetchStorageBytes()
+    let storageTotalBytes = storageInfo.total
+    let storageUsedBytes: Int64? = {
+      guard let total = storageInfo.total, let free = storageInfo.free else {
+        return nil
+      }
+      return max(total - free, 0)
+    }()
+
+    let totals = fetchNetworkTotals()
+    let speed = calculateSpeed(nowTs: nowTs, totals: totals)
+
+    let batteryLevelPercent: Double? = {
+      let level = UIDevice.current.batteryLevel
+      return level < 0 ? nil : Double(level * 100)
+    }()
+
+    let snapshot: [String: Any?] = [
+      "deviceName": UIDevice.current.name,
+      "systemVersion": UIDevice.current.systemVersion,
+      "modelIdentifier": modelIdentifier(),
+      "chip": "Apple SoC (\(ProcessInfo.processInfo.processorCount) cores)",
+      "storageTotalBytes": storageTotalBytes,
+      "storageUsedBytes": storageUsedBytes,
+      "memoryTotalBytes": memoryTotalBytes,
+      "memoryUsedBytes": memoryUsedBytes,
+      "cpuUsagePercent": cpuUsagePercent,
+      "batteryLevelPercent": batteryLevelPercent,
+      "batteryState": batteryStateString(UIDevice.current.batteryState),
+      "networkConnected": networkConnected,
+      "networkType": networkType,
+      "downloadSpeedBytesPerSec": speed.down,
+      "uploadSpeedBytesPerSec": speed.up,
+      "downloadTotalBytes": Double(totals.rx),
+      "uploadTotalBytes": Double(totals.tx),
+      "uptimeSeconds": Int(uptime),
+      "bootAt": ISO8601DateFormatter().string(from: bootAt),
+    ]
+
+    var result: [String: Any] = [:]
+    for (key, value) in snapshot {
+      if let value {
+        result[key] = value
+      }
+    }
+    return result
+  }
+
+  private func modelIdentifier() -> String {
+    var systemInfo = utsname()
+    uname(&systemInfo)
+    return withUnsafePointer(to: &systemInfo.machine) {
+      $0.withMemoryRebound(to: CChar.self, capacity: 1) {
+        String(cString: $0)
+      }
+    }
+  }
+
+  private func batteryStateString(_ state: UIDevice.BatteryState) -> String {
+    switch state {
+    case .charging:
+      return "charging"
+    case .full:
+      return "full"
+    case .unplugged:
+      return "unplugged"
+    case .unknown:
+      return "unknown"
+    @unknown default:
+      return "unknown"
+    }
+  }
+
+  private func fetchStorageBytes() -> (total: Int64?, free: Int64?) {
+    do {
+      let attrs = try FileManager.default.attributesOfFileSystem(
+        forPath: NSHomeDirectory()
+      )
+      let total = (attrs[.systemSize] as? NSNumber)?.int64Value
+      let free = (attrs[.systemFreeSize] as? NSNumber)?.int64Value
+      return (total, free)
+    } catch {
+      return (nil, nil)
+    }
+  }
+
+  private func fetchNetworkTotals() -> (rx: UInt64, tx: UInt64) {
+    var addressPointer: UnsafeMutablePointer<ifaddrs>?
+    guard getifaddrs(&addressPointer) == 0,
+          let firstAddress = addressPointer else {
+      return (0, 0)
+    }
+    defer { freeifaddrs(addressPointer) }
+
+    var rx: UInt64 = 0
+    var tx: UInt64 = 0
+
+    var cursor: UnsafeMutablePointer<ifaddrs>? = firstAddress
+    while let current = cursor {
+      let flags = Int32(current.pointee.ifa_flags)
+      let isUp = (flags & IFF_UP) != 0
+      let isRunning = (flags & IFF_RUNNING) != 0
+
+      if isUp,
+         isRunning,
+         let cName = current.pointee.ifa_name,
+         let data = current.pointee.ifa_data {
+        let name = String(cString: cName)
+        if name.hasPrefix("en") || name.hasPrefix("pdp_ip") {
+          let networkData = data.assumingMemoryBound(to: if_data.self).pointee
+          rx += UInt64(networkData.ifi_ibytes)
+          tx += UInt64(networkData.ifi_obytes)
+        }
+      }
+
+      cursor = current.pointee.ifa_next
+    }
+
+    return (rx, tx)
+  }
+
+  private func calculateSpeed(
+    nowTs: TimeInterval,
+    totals: (rx: UInt64, tx: UInt64)
+  ) -> (down: Double, up: Double) {
+    guard let lastRxBytes,
+          let lastTxBytes,
+          let lastSampleTime,
+          nowTs > lastSampleTime else {
+      self.lastRxBytes = totals.rx
+      self.lastTxBytes = totals.tx
+      self.lastSampleTime = nowTs
+      return (0, 0)
+    }
+
+    let deltaSec = nowTs - lastSampleTime
+    let down = Double(max(Int64(totals.rx) - Int64(lastRxBytes), 0)) / deltaSec
+    let up = Double(max(Int64(totals.tx) - Int64(lastTxBytes), 0)) / deltaSec
+
+    self.lastRxBytes = totals.rx
+    self.lastTxBytes = totals.tx
+    self.lastSampleTime = nowTs
+
+    return (down, up)
+  }
+
+  private func currentAppMemoryUsageBytes() -> Int64? {
+    var info = mach_task_basic_info()
+    var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size)
+
+    let kern: kern_return_t = withUnsafeMutablePointer(to: &info) {
+      $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+        task_info(
+          mach_task_self_,
+          task_flavor_t(MACH_TASK_BASIC_INFO),
+          $0,
+          &count
+        )
+      }
+    }
+
+    guard kern == KERN_SUCCESS else { return nil }
+    return Int64(info.resident_size)
+  }
+
+  private func currentProcessCpuUsagePercent() -> Double? {
+    var threadList: thread_act_array_t?
+    var threadCount: mach_msg_type_number_t = 0
+
+    guard task_threads(mach_task_self_, &threadList, &threadCount) == KERN_SUCCESS,
+          let threadList else {
+      return nil
+    }
+
+    defer {
+      let size = vm_size_t(Int(threadCount) * MemoryLayout<thread_t>.stride)
+      vm_deallocate(mach_task_self_, vm_address_t(UInt(bitPattern: threadList)), size)
+    }
+
+    var totalCpu: Double = 0
+
+    for index in 0..<Int(threadCount) {
+      var info = thread_basic_info()
+      var count = mach_msg_type_number_t(THREAD_INFO_MAX)
+
+      let kr: kern_return_t = withUnsafeMutablePointer(to: &info) {
+        $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+          thread_info(
+            threadList[index],
+            thread_flavor_t(THREAD_BASIC_INFO),
+            $0,
+            &count
+          )
+        }
+      }
+
+      if kr != KERN_SUCCESS { continue }
+      if (info.flags & TH_FLAGS_IDLE) == 0 {
+        totalCpu += Double(info.cpu_usage) / Double(TH_USAGE_SCALE) * 100.0
+      }
+    }
+
+    return totalCpu
   }
 }
