@@ -37,125 +37,168 @@ class _HomePageState extends State<HomePage> {
     return SafeArea(
       top: true,
       bottom: false,
-      child: StreamBuilder<DeviceStatusSnapshot>(
-        stream: _service.stream,
-        builder: (context, snapshot) {
-          final data = snapshot.data;
-          final vmTotal = data?.memoryTotalBytes;
-          final vmUsed = data?.memoryUsedBytes;
-          final storageTotal = data?.storageTotalBytes;
-          final storageUsed = data?.storageUsedBytes;
+      child: StreamBuilder<String>(
+        stream: _service.statusStream,
+        initialData: '连接中',
+        builder: (context, statusSnapshot) {
+          final statusLabel = statusSnapshot.data ?? '连接中';
+          return StreamBuilder<DeviceStatusSnapshot>(
+            stream: _service.stream,
+            builder: (context, snapshot) {
+              final data = snapshot.data;
+              final vmTotal = data?.memoryTotalBytes;
+              final vmUsed = data?.memoryUsedBytes;
+              final storageTotal = data?.storageTotalBytes;
+              final storageUsed = data?.storageUsedBytes;
 
-          final batteryPercent = data?.batteryLevelPercent;
-          final cpuPercent = data?.cpuUsagePercent;
+              final batteryPercent = data?.batteryLevelPercent;
+              final cpuPercent = data?.cpuUsagePercent;
 
-          final downSpeed = data?.downloadSpeedBytesPerSec;
-          final upSpeed = data?.uploadSpeedBytesPerSec;
+              final downSpeed = data?.downloadSpeedBytesPerSec;
+              final upSpeed = data?.uploadSpeedBytesPerSec;
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-            children: [
-              Text(
-                'Device Status+',
-                style: textTheme.displaySmall?.copyWith(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  height: 1.02,
-                  letterSpacing: -0.6,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '实时设备监控和传感器控制',
-                style: textTheme.titleMedium?.copyWith(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  height: 1.15,
-                  color: textTheme.bodyMedium?.color?.withValues(alpha: 0.86),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _DeviceOverviewCard(
-                colorScheme: colorScheme,
-                palette: palette,
-                deviceName: data?.deviceName ?? '当前设备',
-                osVersion: _buildSystemVersion(data),
-                model: _orDash(data?.modelIdentifier),
-                storageTotal: _formatCapacity(storageTotal),
-                chip: _orDash(data?.chip),
-                memoryTotal: _formatCapacity(vmTotal),
-                uptime: _formatUptime(data?.uptimeSeconds),
-                bootAt: _formatDateTime(data?.bootAt),
-              ),
-              const SizedBox(height: 10),
-              GridView.count(
-                crossAxisCount: 2,
-                childAspectRatio: 1.28,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                 children: [
-                  _MetricCard(
-                    colorScheme: colorScheme,
-                    title: 'CPU',
-                    icon: Icons.memory_rounded,
-                    valueLabel: _formatPercent(cpuPercent),
-                    subLabel: '',
-                    progress: _toProgress(cpuPercent),
-                    accent: palette.cpu,
-                  ),
-                  _MetricCard(
-                    colorScheme: colorScheme,
-                    title: '运行内存',
-                    icon: Icons.developer_board_rounded,
-                    valueLabel: _formatPercent(
-                      _computePercent(vmUsed, vmTotal),
+                  Text(
+                    'Device Status+',
+                    style: textTheme.displaySmall?.copyWith(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      height: 1.02,
+                      letterSpacing: -0.6,
                     ),
-                    subLabel: _formatUsage(vmUsed, vmTotal),
-                    progress: _toProgress(_computePercent(vmUsed, vmTotal)),
-                    accent: palette.memory,
                   ),
-                  _MetricCard(
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '实时设备监控和传感器控制',
+                          style: textTheme.titleMedium?.copyWith(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            height: 1.15,
+                            color: textTheme.bodyMedium?.color?.withValues(alpha: 0.86),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _StatusPill(label: statusLabel),
+                    ],
+                ),
+                  const SizedBox(height: 16),
+                  _DeviceOverviewCard(
                     colorScheme: colorScheme,
-                    title: '存储空间',
-                    icon: Icons.save_outlined,
-                    valueLabel: _formatPercent(
-                      _computePercent(storageUsed, storageTotal),
-                    ),
-                    subLabel: _formatUsage(storageUsed, storageTotal),
-                    progress: _toProgress(
-                      _computePercent(storageUsed, storageTotal),
-                    ),
-                    accent: palette.storage,
+                    palette: palette,
+                    deviceName: data?.deviceName ?? '当前设备',
+                    osVersion: _buildSystemVersion(data),
+                    model: _orDash(data?.modelIdentifier),
+                    storageTotal: _formatCapacity(storageTotal),
+                    chip: _orDash(data?.chip),
+                    memoryTotal: _formatCapacity(vmTotal),
+                    uptime: _formatUptime(data?.uptimeSeconds),
+                    bootAt: _formatDateTime(data?.bootAt),
                   ),
-                  _MetricCard(
+                  const SizedBox(height: 10),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    childAspectRatio: 1.28,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _MetricCard(
+                        colorScheme: colorScheme,
+                        title: 'CPU',
+                        icon: Icons.memory_rounded,
+                        valueLabel: _formatPercent(cpuPercent),
+                        subLabel: '',
+                        progress: _toProgress(cpuPercent),
+                        accent: palette.cpu,
+                      ),
+                      _MetricCard(
+                        colorScheme: colorScheme,
+                        title: '运行内存',
+                        icon: Icons.developer_board_rounded,
+                        valueLabel: _formatPercent(
+                          _computePercent(vmUsed, vmTotal),
+                        ),
+                        subLabel: _formatUsage(vmUsed, vmTotal),
+                        progress: _toProgress(_computePercent(vmUsed, vmTotal)),
+                        accent: palette.memory,
+                      ),
+                      _MetricCard(
+                        colorScheme: colorScheme,
+                        title: '存储空间',
+                        icon: Icons.save_outlined,
+                        valueLabel: _formatPercent(
+                          _computePercent(storageUsed, storageTotal),
+                        ),
+                        subLabel: _formatUsage(storageUsed, storageTotal),
+                        progress: _toProgress(
+                          _computePercent(storageUsed, storageTotal),
+                        ),
+                        accent: palette.storage,
+                      ),
+                      _MetricCard(
+                        colorScheme: colorScheme,
+                        title: '电池',
+                        icon: Icons.battery_std_rounded,
+                        valueLabel: _formatPercent(batteryPercent),
+                        subLabel: _batteryStateLabel(data?.batteryState),
+                        progress: _toProgress(batteryPercent),
+                        accent: palette.battery,
+                      ),
+                    ],
+                    ),
+                  const SizedBox(height: 10),
+                  _NetworkCard(
                     colorScheme: colorScheme,
-                    title: '电池',
-                    icon: Icons.battery_std_rounded,
-                    valueLabel: _formatPercent(batteryPercent),
-                    subLabel: _batteryStateLabel(data?.batteryState),
-                    progress: _toProgress(batteryPercent),
-                    accent: palette.battery,
+                    palette: palette,
+                    connectionLabel: _networkStateLabel(
+                      data?.networkConnected,
+                      data?.networkType,
+                    ),
+                    downSpeedLabel: _formatSpeed(downSpeed),
+                    upSpeedLabel: _formatSpeed(upSpeed),
+                    downTotalLabel: _formatBytes(data?.downloadTotalBytes),
+                    upTotalLabel: _formatBytes(data?.uploadTotalBytes),
                   ),
                 ],
-              ),
-              const SizedBox(height: 10),
-              _NetworkCard(
-                colorScheme: colorScheme,
-                palette: palette,
-                connectionLabel: _networkStateLabel(
-                  data?.networkConnected,
-                  data?.networkType,
-                ),
-                downSpeedLabel: _formatSpeed(downSpeed),
-                upSpeedLabel: _formatSpeed(upSpeed),
-                downTotalLabel: _formatBytes(data?.downloadTotalBytes),
-                upTotalLabel: _formatBytes(data?.uploadTotalBytes),
-              ),
-            ],
+              );
+            },
           );
         },
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isGood = label == '已连接';
+    final color = isGood ? Colors.green : colorScheme.primary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: color.withValues(alpha: 0.14),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }

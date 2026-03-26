@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'package:galaxy_ios/models/device_status_snapshot.dart';
@@ -14,13 +15,18 @@ class DeviceStatusService {
   final Duration _interval;
   final StreamController<DeviceStatusSnapshot> _controller =
       StreamController<DeviceStatusSnapshot>.broadcast();
+  final StreamController<String> _statusController =
+      StreamController<String>.broadcast();
 
   Timer? _timer;
   bool _fetching = false;
+  bool _pluginUnavailableLogged = false;
 
   Stream<DeviceStatusSnapshot> get stream => _controller.stream;
+  Stream<String> get statusStream => _statusController.stream;
 
   void start() {
+    _statusController.add('连接中');
     _timer ??= Timer.periodic(_interval, (_) => unawaited(_fetchOnce()));
     unawaited(_fetchOnce());
   }
@@ -32,12 +38,21 @@ class DeviceStatusService {
       final map = await _channel.invokeMapMethod<dynamic, dynamic>(
         'getDeviceStatusSnapshot',
       );
-      if (map == null) return;
+      if (map == null) {
+        _statusController.add('暂无数据');
+        return;
+      }
       _controller.add(DeviceStatusSnapshot.fromMap(map));
+      _statusController.add('已连接');
     } on MissingPluginException {
-      // 非 iOS / 插件未注册时忽略
+      _statusController.add('通道未就绪');
+      if (!_pluginUnavailableLogged) {
+        _pluginUnavailableLogged = true;
+        debugPrint('[DeviceStatus] MissingPluginException: 通道尚未注册');
+      }
     } on PlatformException {
-      // 原生采集失败时忽略，保留上次成功数据
+      _statusController.add('采集异常');
+      debugPrint('[DeviceStatus] PlatformException: 读取设备状态失败');
     } finally {
       _fetching = false;
     }
@@ -46,6 +61,7 @@ class DeviceStatusService {
   Future<void> dispose() async {
     _timer?.cancel();
     _timer = null;
+    await _statusController.close();
     await _controller.close();
   }
 }
