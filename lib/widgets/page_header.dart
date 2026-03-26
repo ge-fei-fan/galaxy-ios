@@ -34,7 +34,7 @@ class HeaderCircleIconButton extends StatelessWidget {
     super.key,
     required this.icon,
     required this.onTap,
-    this.iconSize = 28,
+    this.iconSize = 24,
   });
 
   final IconData icon;
@@ -51,8 +51,8 @@ class HeaderCircleIconButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: Container(
-          width: 58,
-          height: 58,
+          width: 42,
+          height: 42,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(

@@ -32,16 +32,13 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
   }
 
   Future<void> _saveLinks() async {
-    await _linksBox.put(
-      'items',
-      _links.map((link) => link.toMap()).toList(),
-    );
+    await _linksBox.put('items', _links.map((link) => link.toMap()).toList());
   }
 
   Future<void> _openAddDialog() async {
     final result = await showDialog<_LinkFormResult>(
       context: context,
-      builder: (context) => const _LinkDialog(),
+      builder: (_) => const _LinkDialog(),
     );
     if (result == null) return;
     final link = SavedLink(
@@ -59,8 +56,9 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
   Future<void> _openEditDialog(SavedLink link) async {
     final result = await showDialog<_LinkFormResult>(
       context: context,
-      builder: (context) => _LinkDialog(
+      builder: (_) => _LinkDialog(
         dialogTitle: '编辑网址',
+        submitText: '保存',
         initialUrl: link.url,
         initialTitle: link.title,
       ),
@@ -90,11 +88,9 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
 
   Future<void> _openLink(SavedLink link) async {
     if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => WebEmbedPage(link: link),
-      ),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => WebEmbedPage(link: link)));
   }
 
   @override
@@ -173,17 +169,13 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Text(
-              '还没有保存网址',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('还没有保存网址', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 6),
             Text(
               '点击右上角新增一个网址',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Colors.grey.shade600),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -218,16 +210,11 @@ class _LinkCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              _ThumbnailBox(
-                backgroundColor: iconBg,
-                iconColor: iconColor,
-              ),
+              _ThumbnailBox(backgroundColor: iconBg, iconColor: iconColor),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -238,26 +225,24 @@ class _LinkCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       link.url,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: Colors.grey.shade600),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       _formatMeta(link),
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelSmall
-                          ?.copyWith(color: Colors.grey.shade500),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Colors.grey.shade500,
+                      ),
                     ),
                   ],
                 ),
@@ -287,10 +272,7 @@ class _LinkCard extends StatelessWidget {
 }
 
 class _ThumbnailBox extends StatelessWidget {
-  const _ThumbnailBox({
-    required this.backgroundColor,
-    required this.iconColor,
-  });
+  const _ThumbnailBox({required this.backgroundColor, required this.iconColor});
 
   final Color backgroundColor;
   final Color iconColor;
@@ -305,11 +287,7 @@ class _ThumbnailBox extends StatelessWidget {
         color: backgroundColor,
       ),
       alignment: Alignment.center,
-      child: Icon(
-        Icons.grid_view_rounded,
-        color: iconColor,
-        size: 26,
-      ),
+      child: Icon(Icons.grid_view_rounded, color: iconColor, size: 26),
     );
   }
 }
@@ -337,17 +315,14 @@ class _WebEmbedPageState extends State<WebEmbedPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.link.title),
-      ),
+      appBar: AppBar(title: Text(widget.link.title)),
       body: Stack(
         children: [
           WebViewWrapper(
             url: widget.link.url,
             onPageFinished: () => setState(() => _loading = false),
           ),
-          if (_loading)
-            const Center(child: CircularProgressIndicator()),
+          if (_loading) const Center(child: CircularProgressIndicator()),
         ],
       ),
     );
@@ -377,9 +352,7 @@ class _WebViewWrapperState extends State<WebViewWrapper> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (_) => widget.onPageFinished(),
-        ),
+        NavigationDelegate(onPageFinished: (_) => widget.onPageFinished()),
       )
       ..loadRequest(Uri.parse(widget.url));
   }
@@ -393,11 +366,13 @@ class _WebViewWrapperState extends State<WebViewWrapper> {
 class _LinkDialog extends StatefulWidget {
   const _LinkDialog({
     this.dialogTitle = '新增网址',
+    this.submitText = '保存',
     this.initialUrl,
     this.initialTitle,
   });
 
   final String dialogTitle;
+  final String submitText;
   final String? initialUrl;
   final String? initialTitle;
 
@@ -409,13 +384,15 @@ class _LinkDialogState extends State<_LinkDialog> {
   late final TextEditingController _urlController;
   late final TextEditingController _titleController;
   String? _errorText;
+  static const _strokeColor = Color(0xFFD2D2D7);
+  static const _labelColor = Color(0xFF8A8A91);
+  static const _hintColor = Color(0xFF9A9AA1);
 
   @override
   void initState() {
     super.initState();
     _urlController = TextEditingController(text: widget.initialUrl ?? '');
-    _titleController =
-        TextEditingController(text: widget.initialTitle ?? '');
+    _titleController = TextEditingController(text: widget.initialTitle ?? '');
   }
 
   @override
@@ -440,42 +417,133 @@ class _LinkDialogState extends State<_LinkDialog> {
     Navigator.of(context).pop(_LinkFormResult(url: url, title: title));
   }
 
+  InputDecoration _inputDecoration({required String hint, String? errorText}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: _hintColor, fontSize: 16),
+      errorText: errorText,
+      isDense: true,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: const BorderSide(color: _strokeColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: const BorderSide(color: _strokeColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: const BorderSide(color: Color(0xFFB9B9C0), width: 1.2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.dialogTitle),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _urlController,
-            decoration: InputDecoration(
-              labelText: '网址',
-              hintText: 'https://example.com',
-              errorText: _errorText,
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.dialogTitle,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
             ),
-            keyboardType: TextInputType.url,
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _titleController,
-            decoration: const InputDecoration(
-              labelText: '标题（可选）',
+            const SizedBox(height: 8),
+            const Text(
+              '网址',
+              style: TextStyle(
+                color: _labelColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            TextField(
+              controller: _urlController,
+              decoration: _inputDecoration(
+                hint: '例如：https://example.com',
+                errorText: _errorText,
+              ),
+              keyboardType: TextInputType.url,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              '标题（可选）',
+              style: TextStyle(
+                color: _labelColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _titleController,
+              decoration: _inputDecoration(hint: '输入标题资讯（可选）'),
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      side: const BorderSide(color: _strokeColor),
+                    ),
+                    child: const Text('取消'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    child: Text(widget.submitText),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
-        ),
-        ElevatedButton(
-          onPressed: _submit,
-          child: const Text('保存'),
-        ),
-      ],
     );
   }
 }

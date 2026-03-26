@@ -49,9 +49,9 @@ class SettingsPage extends StatelessWidget {
                     child: Text(
                       '常规设定',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 14,
                         color: sectionTitleColor,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,
                       ),
                     ),
@@ -92,9 +92,9 @@ class SettingsPage extends StatelessWidget {
                     child: Text(
                       '其他',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 14,
                         color: sectionTitleColor,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,
                       ),
                     ),

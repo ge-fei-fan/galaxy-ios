@@ -53,7 +53,7 @@ class ProfilesPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AppPageTitle(
-                title: 'mqtt客户端',
+                title: '客户端',
                 trailing: HeaderCircleIconButton(
                   icon: Icons.playlist_add_rounded,
                   iconSize: 30,

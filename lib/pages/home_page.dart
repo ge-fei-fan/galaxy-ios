@@ -16,10 +16,10 @@ class HomePage extends StatelessWidget {
         children: [
           AppPageTitle(
             title: '首页',
-            trailing: HeaderCircleIconButton(
-              icon: Icons.person_2_outlined,
-              onTap: () {},
-            ),
+            // trailing: HeaderCircleIconButton(
+            //   icon: Icons.person_2_outlined,
+            //   onTap: () {},
+            // ),
           ),
           const SizedBox(height: 30),
           Row(

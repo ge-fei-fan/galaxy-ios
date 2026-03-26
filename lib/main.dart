@@ -184,6 +184,8 @@ class _MainTabBar extends StatelessWidget {
     required this.useIosStyle,
   });
 
+  static const double _barRadius = 35;
+
   final int currentIndex;
   final ValueChanged<int> onTap;
   final bool useIosStyle;
@@ -238,7 +240,7 @@ class _MainTabBar extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(_barRadius),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x52000000),
@@ -248,7 +250,7 @@ class _MainTabBar extends StatelessWidget {
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(_barRadius),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: DecoratedBox(
@@ -258,7 +260,7 @@ class _MainTabBar extends StatelessWidget {
                       color: const Color(0x26FFFFFF),
                       width: 0.8,
                     ),
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(_barRadius),
                   ),
                   child: SizedBox(
                     height: 72,
