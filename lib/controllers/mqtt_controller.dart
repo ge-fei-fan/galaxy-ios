@@ -303,8 +303,9 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
       ..onSubscribed = _handleSubscribed
       ..onSubscribeFail = _handleSubscribeFail;
 
-    final connectMessage =
-        MqttConnectMessage().withClientIdentifier(profile.clientId).startClean();
+    final connectMessage = MqttConnectMessage()
+        .withClientIdentifier(profile.clientId)
+        .startClean();
 
     if ((profile.username ?? '').isNotEmpty) {
       connectMessage.authenticateAs(profile.username!, profile.password ?? '');
@@ -515,16 +516,17 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     if (legacyMessages is Map && legacyMessages.isNotEmpty) {
       final activeId = activeProfileId;
       if (activeId != null && (_messagesByProfile[activeId]?.isEmpty ?? true)) {
-        _messagesByProfile[activeId] = legacyMessages.map<String, List<MqttMessageEntry>>(
-          (key, value) => MapEntry(
-            key.toString(),
-            (value as List?)
-                    ?.whereType<Map>()
-                    .map(MqttMessageEntry.fromMap)
-                    .toList() ??
-                [],
-          ),
-        );
+        _messagesByProfile[activeId] = legacyMessages
+            .map<String, List<MqttMessageEntry>>(
+              (key, value) => MapEntry(
+                key.toString(),
+                (value as List?)
+                        ?.whereType<Map>()
+                        .map(MqttMessageEntry.fromMap)
+                        .toList() ??
+                    [],
+              ),
+            );
       }
       _messagesBox.delete('history');
       _persistMessages();
@@ -563,7 +565,9 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
       _messagesByProfile[activeId] ?? const {},
     );
     if (topics.isNotEmpty) {
-      selectedTopic = topics.contains(selectedTopic) ? selectedTopic : topics.first;
+      selectedTopic = topics.contains(selectedTopic)
+          ? selectedTopic
+          : topics.first;
     } else {
       selectedTopic = null;
     }
@@ -575,7 +579,9 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     _topicsByProfile[activeId] = List<String>.from(updated);
     profiles = profiles
         .map(
-          (p) => p.id == activeId ? p.copyWith(topics: List<String>.from(updated)) : p,
+          (p) => p.id == activeId
+              ? p.copyWith(topics: List<String>.from(updated))
+              : p,
         )
         .toList();
     _persistProfiles();
@@ -586,7 +592,9 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
   ) {
     final activeId = activeProfileId;
     if (activeId == null) return;
-    _messagesByProfile[activeId] = Map<String, List<MqttMessageEntry>>.from(updated);
+    _messagesByProfile[activeId] = Map<String, List<MqttMessageEntry>>.from(
+      updated,
+    );
   }
 
   Future<void> _persistTopics() async {
@@ -671,7 +679,9 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
   /// 结束 iOS Live Activity（灵动岛）演示
   Future<String> stopDynamicIslandDemo() async {
     try {
-      final result = await _channel.invokeMethod<String>('stopDynamicIslandDemo');
+      final result = await _channel.invokeMethod<String>(
+        'stopDynamicIslandDemo',
+      );
       final message = result ?? '已请求结束灵动岛演示';
       _notificationService.log('Flutter: $message');
       return message;
@@ -703,6 +713,22 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
       await _channel.invokeMethod<String>('endMqttLiveActivity');
     } catch (e) {
       _notificationService.log('Flutter: 结束灵动岛活动失败: $e');
+    }
+  }
+
+  Future<String> installIpaViaTrollStore(String ipaUrl) async {
+    try {
+      final result = await _channel.invokeMethod<String>(
+        'installIpaViaTrollStore',
+        {'ipaUrl': ipaUrl},
+      );
+      final message = result ?? '已请求 TrollStore 安装';
+      _notificationService.log('Flutter: $message');
+      return message;
+    } catch (e) {
+      final message = '调用 TrollStore 安装失败: $e';
+      _notificationService.log('Flutter: $message');
+      return message;
     }
   }
 

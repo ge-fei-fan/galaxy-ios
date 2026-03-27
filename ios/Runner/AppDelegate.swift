@@ -90,6 +90,8 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
         self.setClipboardMonitorEnabled(call.arguments, result: result)
       case "getDeviceStatusSnapshot":
         result(self.deviceStatusCollector.snapshot())
+      case "installIpaViaTrollStore":
+        self.installIpaViaTrollStore(call.arguments, result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -357,6 +359,42 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
       trigger: nil
     )
     UNUserNotificationCenter.current().add(request)
+  }
+
+  // MARK: - TrollStore Install
+
+  private func installIpaViaTrollStore(_ arguments: Any?, result: @escaping FlutterResult) {
+    guard let map = arguments as? [String: Any] else {
+      result("参数格式错误")
+      return
+    }
+
+    let ipaUrl = (map["ipaUrl"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !ipaUrl.isEmpty else {
+      result("IPA 下载地址为空")
+      return
+    }
+
+    guard let encodedIpaUrl = ipaUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+          let trollStoreUrl = URL(string: "trollstore://install?url=\(encodedIpaUrl)") else {
+      result("IPA 下载地址无效")
+      return
+    }
+
+    DispatchQueue.main.async {
+      guard UIApplication.shared.canOpenURL(trollStoreUrl) else {
+        result("未检测到 TrollStore，请先安装 TrollStore")
+        return
+      }
+
+      UIApplication.shared.open(trollStoreUrl, options: [:]) { success in
+        if success {
+          result("已交给 TrollStore 下载并安装")
+        } else {
+          result("唤起 TrollStore 失败")
+        }
+      }
+    }
   }
 
   // MARK: - Dynamic Island / Live Activity Demo
