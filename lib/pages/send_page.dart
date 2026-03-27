@@ -36,6 +36,12 @@ class _SendPageState extends State<SendPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFill = isDark ? const Color(0xFF20232B) : Colors.white;
+    final inputBorderColor = isDark
+        ? const Color(0xFF3A3D46)
+        : const Color(0xFFD2D2D7);
+
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () => FocusScope.of(context).unfocus(),
@@ -52,11 +58,16 @@ class _SendPageState extends State<SendPage> {
             TextField(
               controller: _topicController,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Topic',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: inputBorderColor),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: inputBorderColor),
+                ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: inputFill,
               ),
             ),
             const SizedBox(height: 12),
@@ -66,12 +77,17 @@ class _SendPageState extends State<SendPage> {
                 maxLines: null,
                 expands: true,
                 textInputAction: TextInputAction.newline,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Payload',
                   alignLabelWithHint: true,
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(color: inputBorderColor),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: inputBorderColor),
+                  ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: inputFill,
                 ),
               ),
             ),

@@ -9,7 +9,7 @@ class SegmentedCapsule extends StatelessWidget {
     this.horizontalPadding = 8,
     this.height = 36,
     this.cornerRadius = 12,
-    this.backgroundColor = const Color(0xFFE6E6E8),
+    this.backgroundColor,
     this.selectedColor = const Color(0xFF4CB3FF),
     this.unselectedTextColor,
     this.width,
@@ -21,7 +21,7 @@ class SegmentedCapsule extends StatelessWidget {
   final double horizontalPadding;
   final double height;
   final double cornerRadius;
-  final Color backgroundColor;
+  final Color? backgroundColor;
   final Color selectedColor;
   final Color? unselectedTextColor;
   final double? width;
@@ -29,6 +29,10 @@ class SegmentedCapsule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final effectiveBackgroundColor =
+        backgroundColor ??
+        (isDark ? const Color(0xFF2A2D36) : const Color(0xFFE6E6E8));
     final inactiveColor =
         unselectedTextColor ?? theme.textTheme.labelLarge?.color ?? Colors.black54;
     return SizedBox(
@@ -36,7 +40,7 @@ class SegmentedCapsule extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: backgroundColor,
+          color: effectiveBackgroundColor,
           borderRadius: BorderRadius.circular(cornerRadius + 6),
         ),
         child: SizedBox(

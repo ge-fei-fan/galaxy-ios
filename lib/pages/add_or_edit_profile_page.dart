@@ -29,7 +29,6 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
   bool _enableLiveActivity = false;
   bool _obscurePassword = true;
 
-  static const _pageBg = Color(0xFFF2F1F6);
   static const _strokeColor = Color(0xFFD2D2D7);
   static const _labelColor = Color(0xFF8A8A91);
   static const _hintColor = Color(0xFF9A9AA1);
@@ -106,35 +105,47 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
     Navigator.pop(context, true);
   }
 
-  InputDecoration _inputDecoration({required String hint, Widget? suffixIcon}) {
+  InputDecoration _inputDecoration({
+    required String hint,
+    required bool isDark,
+    Widget? suffixIcon,
+  }) {
+    final strokeColor = isDark ? const Color(0xFF3A3D46) : _strokeColor;
+    final hintColor = isDark ? const Color(0xFF7F8593) : _hintColor;
+    final fillColor = isDark ? const Color(0xFF20232B) : Colors.white;
+
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: _hintColor, fontSize: 16),
+      hintStyle: TextStyle(color: hintColor, fontSize: 16),
       isDense: true,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: fillColor,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       suffixIcon: suffixIcon,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: _strokeColor),
+        borderSide: BorderSide(color: strokeColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: _strokeColor),
+        borderSide: BorderSide(color: strokeColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Color(0xFFB9B9C0), width: 1.2),
+        borderSide: BorderSide(
+          color: isDark ? const Color(0xFF5A5F70) : const Color(0xFFB9B9C0),
+          width: 1.2,
+        ),
       ),
     );
   }
 
-  Widget _fieldLabel(String text) {
+  Widget _fieldLabel(String text, {required bool isDark}) {
+    final color = isDark ? const Color(0xFF9FA3AE) : _labelColor;
     return Text(
       text,
-      style: const TextStyle(
-        color: _labelColor,
+      style: TextStyle(
+        color: color,
         fontSize: 16,
         fontWeight: FontWeight.w500,
       ),
@@ -143,9 +154,18 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final pageBg = isDark ? const Color(0xFF121318) : const Color(0xFFF2F1F6);
+    final formCardBg = isDark ? const Color(0xFF1B1D23) : Colors.white;
+    final backBtnBg = isDark ? const Color(0xFF2A2D36) : const Color(0xFFE6E6EB);
+    final titleColor = isDark ? const Color(0xFFE8EAF0) : null;
+    final submitBg = isDark ? theme.colorScheme.primary : Colors.black;
+    final submitFg = isDark ? Colors.black : Colors.white;
+
     final isEdit = widget.initial != null;
     return Scaffold(
-      backgroundColor: _pageBg,
+      backgroundColor: pageBg,
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusScope.of(context).unfocus(),
@@ -159,7 +179,7 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
                 Row(
                   children: [
                     Material(
-                      color: const Color(0xFFE6E6EB),
+                      color: backBtnBg,
                       shape: const CircleBorder(),
                       child: InkWell(
                         customBorder: const CircleBorder(),
@@ -177,9 +197,10 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
                     const SizedBox(width: 12),
                     Text(
                       isEdit ? '编辑配置' : '新增配置',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w700,
+                        color: titleColor,
                       ),
                     ),
                   ],
@@ -189,66 +210,77 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: formCardBg,
                     borderRadius: BorderRadius.circular(28),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _fieldLabel('配置名称'),
+                      _fieldLabel('配置名称', isDark: isDark),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _nameController,
                         textInputAction: TextInputAction.next,
-                        decoration: _inputDecoration(hint: '输入配置名称'),
+                        decoration: _inputDecoration(
+                          hint: '输入配置名称',
+                          isDark: isDark,
+                        ),
                       ),
                       const SizedBox(height: 18),
-                      _fieldLabel('备注'),
+                      _fieldLabel('备注', isDark: isDark),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _remarkController,
                         textInputAction: TextInputAction.next,
-                        decoration: _inputDecoration(hint: '输入备注资讯（可选）'),
+                        decoration: _inputDecoration(
+                          hint: '输入备注资讯（可选）',
+                          isDark: isDark,
+                        ),
                       ),
                       const SizedBox(height: 18),
-                      _fieldLabel('Broker 地址'),
+                      _fieldLabel('Broker 地址', isDark: isDark),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _hostController,
                         textInputAction: TextInputAction.next,
                         decoration: _inputDecoration(
                           hint: '例如：test.mosquitto.org',
+                          isDark: isDark,
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _fieldLabel('端口'),
+                      _fieldLabel('端口', isDark: isDark),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _portController,
                         keyboardType: TextInputType.number,
                         textInputAction: TextInputAction.next,
-                        decoration: _inputDecoration(hint: '1883'),
+                        decoration: _inputDecoration(hint: '1883', isDark: isDark),
                       ),
                       const SizedBox(height: 18),
-                      _fieldLabel('Client ID'),
+                      _fieldLabel('Client ID', isDark: isDark),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _clientIdController,
                         textInputAction: TextInputAction.next,
                         decoration: _inputDecoration(
                           hint: 'flutter_mqtt_client',
+                          isDark: isDark,
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _fieldLabel('用户名（可选）'),
+                      _fieldLabel('用户名（可选）', isDark: isDark),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _usernameController,
                         textInputAction: TextInputAction.next,
-                        decoration: _inputDecoration(hint: '输入用户名（可选）'),
+                        decoration: _inputDecoration(
+                          hint: '输入用户名（可选）',
+                          isDark: isDark,
+                        ),
                       ),
                       const SizedBox(height: 18),
-                      _fieldLabel('密码（可选）'),
+                      _fieldLabel('密码（可选）', isDark: isDark),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _passwordController,
@@ -257,6 +289,7 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
                         onSubmitted: (_) => _save(),
                         decoration: _inputDecoration(
                           hint: '输入密码（可选）',
+                          isDark: isDark,
                           suffixIcon: IconButton(
                             onPressed: () {
                               setState(() {
@@ -267,7 +300,9 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
                               _obscurePassword
                                   ? Icons.visibility_outlined
                                   : Icons.visibility_off_outlined,
-                              color: const Color(0xFF8A8A91),
+                              color: isDark
+                                  ? const Color(0xFF9FA3AE)
+                                  : const Color(0xFF8A8A91),
                             ),
                           ),
                         ),
@@ -288,8 +323,8 @@ class _AddOrEditProfilePageState extends State<AddOrEditProfilePage> {
           height: 58,
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
+              backgroundColor: submitBg,
+              foregroundColor: submitFg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(32),
               ),

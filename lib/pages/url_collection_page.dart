@@ -95,7 +95,10 @@ class _UrlCollectionPageState extends State<UrlCollectionPage> {
 
   @override
   Widget build(BuildContext context) {
-    const pageBackground = Color(0xFFF2F1F6);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final pageBackground = isDark
+        ? const Color(0xFF121318)
+        : const Color(0xFFF2F1F6);
     return Scaffold(
       backgroundColor: pageBackground,
       body: SafeArea(
@@ -144,12 +147,20 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF1B1D23) : Colors.white;
+    final iconBg = isDark ? const Color(0xFF2A2D36) : const Color(0xFFEAF0FF);
+    final titleColor = isDark ? const Color(0xFFE8EAF0) : null;
+    final descColor = isDark
+        ? const Color(0xFF9FA3AE)
+        : Colors.grey.shade600;
+
     return Center(
       child: Container(
         padding: const EdgeInsets.all(20),
         margin: const EdgeInsets.symmetric(horizontal: 24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -159,7 +170,7 @@ class _EmptyState extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: const Color(0xFFEAF0FF),
+                color: iconBg,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(
@@ -169,13 +180,18 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Text('还没有保存网址', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              '还没有保存网址',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: titleColor),
+            ),
             const SizedBox(height: 6),
             Text(
               '点击右上角新增一个网址',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: descColor,
+              ),
             ),
           ],
         ),
@@ -199,11 +215,17 @@ class _LinkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconBg = const Color(0xFFEAF0FF);
-    final iconColor = const Color(0xFF5B7BFF);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconBg = isDark ? const Color(0xFF2A2D36) : const Color(0xFFEAF0FF);
+    final iconColor = isDark
+        ? const Color(0xFF8DB2FF)
+        : const Color(0xFF5B7BFF);
+    final cardColor = isDark ? const Color(0xFF1B1D23) : Colors.white;
+    final urlColor = isDark ? const Color(0xFFA8ACB8) : Colors.grey.shade600;
+    final metaColor = isDark ? const Color(0xFF868B98) : Colors.grey.shade500;
 
     return Material(
-      color: Colors.white,
+      color: cardColor,
       borderRadius: BorderRadius.circular(16),
       elevation: 0,
       child: InkWell(
@@ -234,14 +256,14 @@ class _LinkCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade600,
+                        color: urlColor,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       _formatMeta(link),
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Colors.grey.shade500,
+                        color: metaColor,
                       ),
                     ),
                   ],
@@ -417,38 +439,57 @@ class _LinkDialogState extends State<_LinkDialog> {
     Navigator.of(context).pop(_LinkFormResult(url: url, title: title));
   }
 
-  InputDecoration _inputDecoration({required String hint, String? errorText}) {
+  InputDecoration _inputDecoration({
+    required String hint,
+    required bool isDark,
+    String? errorText,
+  }) {
+    final strokeColor = isDark ? const Color(0xFF3A3D46) : _strokeColor;
+    final hintColor = isDark ? const Color(0xFF7F8593) : _hintColor;
+    final fillColor = isDark ? const Color(0xFF20232B) : Colors.white;
+
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: _hintColor, fontSize: 16),
+      hintStyle: TextStyle(color: hintColor, fontSize: 16),
       errorText: errorText,
       isDense: true,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: fillColor,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: _strokeColor),
+        borderSide: BorderSide(color: strokeColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: _strokeColor),
+        borderSide: BorderSide(color: strokeColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Color(0xFFB9B9C0), width: 1.2),
+        borderSide: BorderSide(
+          color: isDark ? const Color(0xFF5A5F70) : const Color(0xFFB9B9C0),
+          width: 1.2,
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1B1D23) : Colors.white;
+    final labelColor = isDark ? const Color(0xFF9FA3AE) : _labelColor;
+    final outlineColor = isDark ? const Color(0xFF3A3D46) : _strokeColor;
+    final submitBg = isDark ? theme.colorScheme.primary : Colors.black;
+    final submitFg = isDark ? Colors.black : Colors.white;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: dialogBg,
           borderRadius: BorderRadius.circular(28),
         ),
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
@@ -461,9 +502,10 @@ class _LinkDialogState extends State<_LinkDialog> {
                 Expanded(
                   child: Text(
                     widget.dialogTitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
+                      color: theme.textTheme.titleLarge?.color,
                     ),
                   ),
                 ),
@@ -474,10 +516,10 @@ class _LinkDialogState extends State<_LinkDialog> {
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               '网址',
               style: TextStyle(
-                color: _labelColor,
+                color: labelColor,
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -487,16 +529,17 @@ class _LinkDialogState extends State<_LinkDialog> {
               controller: _urlController,
               decoration: _inputDecoration(
                 hint: '例如：https://example.com',
+                isDark: isDark,
                 errorText: _errorText,
               ),
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               '标题（可选）',
               style: TextStyle(
-                color: _labelColor,
+                color: labelColor,
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -504,7 +547,10 @@ class _LinkDialogState extends State<_LinkDialog> {
             const SizedBox(height: 8),
             TextField(
               controller: _titleController,
-              decoration: _inputDecoration(hint: '输入标题资讯（可选）'),
+              decoration: _inputDecoration(
+                hint: '输入标题资讯（可选）',
+                isDark: isDark,
+              ),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
             ),
@@ -519,7 +565,7 @@ class _LinkDialogState extends State<_LinkDialog> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      side: const BorderSide(color: _strokeColor),
+                      side: BorderSide(color: outlineColor),
                     ),
                     child: const Text('取消'),
                   ),
@@ -530,8 +576,8 @@ class _LinkDialogState extends State<_LinkDialog> {
                     onPressed: _submit,
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                      backgroundColor: submitBg,
+                      foregroundColor: submitFg,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),

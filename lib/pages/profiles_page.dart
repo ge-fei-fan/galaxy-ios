@@ -40,7 +40,9 @@ class ProfilesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = controller.activeProfile;
-    const pageBg = Color(0xFFF2F1F6);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final pageBg = isDark ? const Color(0xFF121318) : const Color(0xFFF2F1F6);
+    final emptyCardBg = isDark ? const Color(0xFF1B1D23) : Colors.white;
 
     return Container(
       color: pageBg,
@@ -66,6 +68,7 @@ class ProfilesPage extends StatelessWidget {
                   active: active,
                   connected: controller.connected,
                   status: controller.status,
+                  isDark: isDark,
                   onTap: () => _openDetail(context, active),
                   onConnect: controller.connected
                       ? null
@@ -79,10 +82,13 @@ class ProfilesPage extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: emptyCardBg,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text('暂无可用配置，请点击右上角新增 MQTT 配置'),
+                  child: Text(
+                    '暂无可用配置，请点击右上角新增 MQTT 配置',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
               // const SizedBox(height: 12),
               // Container(
@@ -139,6 +145,7 @@ class ProfilesPage extends StatelessWidget {
                       profile: p,
                       selected: selected,
                       isConnectedSelected: isConnectedSelected,
+                      isDark: isDark,
                       canDelete: controller.profiles.length > 1,
                       onTap: () => controller.selectProfile(p.id),
                       onEdit: () => _openEdit(context, p),
@@ -160,6 +167,7 @@ class _MqttConnectionCard extends StatelessWidget {
     required this.active,
     required this.connected,
     required this.status,
+    required this.isDark,
     required this.onTap,
     required this.onConnect,
     required this.onDisconnect,
@@ -168,13 +176,30 @@ class _MqttConnectionCard extends StatelessWidget {
   final MqttProfile active;
   final bool connected;
   final String status;
+  final bool isDark;
   final VoidCallback onTap;
   final VoidCallback? onConnect;
   final VoidCallback? onDisconnect;
 
   @override
   Widget build(BuildContext context) {
-    const titleColor = Color(0xFF1F2558);
+    final titleColor = isDark ? const Color(0xFFE3E7F5) : const Color(0xFF1F2558);
+    final subTitleColor = isDark ? const Color(0xFFC8CEDF) : const Color(0xFF20234F);
+    final textColor = isDark ? const Color(0xFFB3B9CB) : const Color(0xFF666C84);
+    final hostColor = isDark ? const Color(0xFFD0D6E8) : const Color(0xFF373C6E);
+    final outerGradient = isDark
+        ? const [Color(0xFF2A2E3A), Color(0xFF242A39), Color(0xFF2B2734)]
+        : const [Color(0xFFEFF5FF), Color(0xFFE9F3FF), Color(0xFFF7EBD8)];
+    final innerCardBg = isDark ? const Color(0xFF1B1D23) : Colors.white;
+    final iconBg = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.82);
+    final connectedChipBg = connected
+        ? const Color(0x220AB36E)
+        : (isDark ? const Color(0x22FFFFFF) : const Color(0x22000000));
+    final disconnectedText = isDark
+        ? const Color(0xFFB7BECE)
+        : const Color(0xFF555B6B);
 
     return InkWell(
       borderRadius: BorderRadius.circular(22),
@@ -184,14 +209,14 @@ class _MqttConnectionCard extends StatelessWidget {
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFEFF5FF), Color(0xFFE9F3FF), Color(0xFFF7EBD8)],
+            colors: outerGradient,
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x14000000),
+              color: isDark ? const Color(0x22000000) : const Color(0x14000000),
               blurRadius: 12,
               offset: Offset(0, 3),
             ),
@@ -204,11 +229,13 @@ class _MqttConnectionCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: innerCardBg,
                 borderRadius: BorderRadius.circular(18),
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x12000000),
+                    color: isDark
+                        ? const Color(0x14000000)
+                        : const Color(0x12000000),
                     blurRadius: 8,
                     offset: Offset(0, 2),
                   ),
@@ -223,10 +250,10 @@ class _MqttConnectionCard extends StatelessWidget {
                         width: 46,
                         height: 46,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.82),
+                          color: iconBg,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.cloud_rounded,
                           color: titleColor,
                         ),
@@ -236,7 +263,7 @@ class _MqttConnectionCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'MQTT连接',
                               style: TextStyle(
                                 color: titleColor,
@@ -249,8 +276,8 @@ class _MqttConnectionCard extends StatelessWidget {
                               active.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF20234F),
+                              style: TextStyle(
+                                color: subTitleColor,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -264,9 +291,7 @@ class _MqttConnectionCard extends StatelessWidget {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: connected
-                              ? const Color(0x220AB36E)
-                              : const Color(0x22000000),
+                          color: connectedChipBg,
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
@@ -288,7 +313,7 @@ class _MqttConnectionCard extends StatelessWidget {
                               style: TextStyle(
                                 color: connected
                                     ? const Color(0xFF0A8A57)
-                                    : const Color(0xFF555B6B),
+                                    : disconnectedText,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -300,8 +325,8 @@ class _MqttConnectionCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     '${active.host}:${active.port}',
-                    style: const TextStyle(
-                      color: Color(0xFF373C6E),
+                    style: TextStyle(
+                      color: hostColor,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -311,7 +336,7 @@ class _MqttConnectionCard extends StatelessWidget {
                       active.remark.trim(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Color(0xFF666C84)),
+                      style: TextStyle(color: textColor),
                     ),
                   ],
                   const SizedBox(height: 8),
@@ -319,8 +344,8 @@ class _MqttConnectionCard extends StatelessWidget {
                     status,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF666C84),
+                    style: TextStyle(
+                      color: textColor,
                       fontSize: 13,
                     ),
                   ),
@@ -362,6 +387,7 @@ class _MqttProfileTile extends StatelessWidget {
     required this.profile,
     required this.selected,
     required this.isConnectedSelected,
+    required this.isDark,
     required this.canDelete,
     required this.onTap,
     required this.onEdit,
@@ -371,6 +397,7 @@ class _MqttProfileTile extends StatelessWidget {
   final MqttProfile profile;
   final bool selected;
   final bool isConnectedSelected;
+  final bool isDark;
   final bool canDelete;
   final VoidCallback onTap;
   final VoidCallback onEdit;
@@ -378,13 +405,19 @@ class _MqttProfileTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const titleColor = Color(0xFF1F2558);
+    final titleColor = isDark ? const Color(0xFFE3E7F5) : const Color(0xFF1F2558);
+    final itemBg = isDark ? const Color(0xFF1B1D23) : Colors.white;
+    final hostColor = isDark ? const Color(0xFFB8BFD1) : const Color(0xFF6E7388);
+    final remarkColor = isDark ? const Color(0xFF8F96AA) : const Color(0xFF8A8FA1);
+    final iconActionColor = isDark ? const Color(0xFFB3BACB) : const Color(0xFF5E6380);
     final borderColor = isConnectedSelected
         ? const Color(0xFF5AD7A4)
-        : (selected ? const Color(0xFF9FB3FF) : const Color(0xFFE8EAF5));
+        : (selected
+              ? const Color(0xFF9FB3FF)
+              : (isDark ? const Color(0xFF303543) : const Color(0xFFE8EAF5)));
 
     return Material(
-      color: Colors.white,
+      color: itemBg,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -392,12 +425,12 @@ class _MqttProfileTile extends StatelessWidget {
         child: Ink(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: itemBg,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: borderColor, width: 1.3),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x10000000),
+                color: isDark ? const Color(0x14000000) : const Color(0x10000000),
                 blurRadius: 8,
                 offset: Offset(0, 2),
               ),
@@ -432,7 +465,7 @@ class _MqttProfileTile extends StatelessWidget {
                       profile.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: titleColor,
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -443,8 +476,8 @@ class _MqttProfileTile extends StatelessWidget {
                       '${profile.host}:${profile.port}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF6E7388),
+                      style: TextStyle(
+                        color: hostColor,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -453,7 +486,7 @@ class _MqttProfileTile extends StatelessWidget {
                         profile.remark.trim(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Color(0xFF8A8FA1)),
+                        style: TextStyle(color: remarkColor),
                       ),
                   ],
                 ),
@@ -461,14 +494,14 @@ class _MqttProfileTile extends StatelessWidget {
               IconButton(
                 tooltip: '编辑',
                 onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined, color: Color(0xFF5E6380)),
+                icon: Icon(Icons.edit_outlined, color: iconActionColor),
               ),
               IconButton(
                 tooltip: '删除',
                 onPressed: canDelete ? onDelete : null,
-                icon: const Icon(
+                icon: Icon(
                   Icons.delete_outline,
-                  color: Color(0xFF5E6380),
+                  color: iconActionColor,
                 ),
               ),
             ],

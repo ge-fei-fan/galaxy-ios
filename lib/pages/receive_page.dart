@@ -71,6 +71,13 @@ class _TopicsTabState extends State<_TopicsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFill = isDark ? const Color(0xFF20232B) : Colors.white;
+    final inputBorderColor = isDark
+        ? const Color(0xFF3A3D46)
+        : const Color(0xFFD2D2D7);
+    final cardColor = isDark ? const Color(0xFF1B1D23) : null;
+
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () => FocusScope.of(context).unfocus(),
@@ -96,9 +103,16 @@ class _TopicsTabState extends State<_TopicsTab> {
                       FocusScope.of(context).unfocus();
                       setState(() {});
                     },
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: '输入主题',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: inputBorderColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: inputBorderColor),
+                      ),
+                      filled: true,
+                      fillColor: inputFill,
                     ),
                   ),
                 ),
@@ -128,6 +142,7 @@ class _TopicsTabState extends State<_TopicsTab> {
                             widget.controller.messagesByTopic[topic]?.length ??
                                 0;
                         return Card(
+                          color: cardColor,
                           child: ListTile(
                             title: Text(topic),
                             subtitle: Text('历史消息: $messageCount'),
@@ -156,6 +171,11 @@ class _MessagesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFill = isDark ? const Color(0xFF20232B) : Colors.white;
+    final inputBorderColor = isDark
+        ? const Color(0xFF3A3D46)
+        : const Color(0xFFD2D2D7);
     final selected = controller.selectedTopic;
     final List<MqttMessageEntry> messages = selected == null
         ? <MqttMessageEntry>[]
@@ -180,9 +200,16 @@ class _MessagesTab extends StatelessWidget {
                     ))
                 .toList(),
             onChanged: controller.selectTopic,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: '选择主题',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: inputBorderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: inputBorderColor),
+              ),
+              filled: true,
+              fillColor: inputFill,
             ),
           ),
           const SizedBox(height: 16),

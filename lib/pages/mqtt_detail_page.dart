@@ -38,14 +38,19 @@ class _MqttDetailPageState extends State<MqttDetailPage>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final topics = widget.controller.topics;
     final topicSummary = topics.isEmpty ? '暂无主题' : topics.join('、');
-    const pageBackground = Color(0xFFF2F1F6);
+    final pageBackground = isDark
+        ? const Color(0xFF121318)
+        : const Color(0xFFF2F1F6);
     return Scaffold(
       backgroundColor: pageBackground,
       appBar: AppBar(
         title: Text(widget.profile.name),
         backgroundColor: pageBackground,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
       body: Column(
