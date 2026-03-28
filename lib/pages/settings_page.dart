@@ -239,34 +239,29 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                       ],
                     ),
-                    child: _LogsRow(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                LogsPage(controller: widget.controller),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: cardColor,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        if (!isDark)
-                          const BoxShadow(
-                            color: Color(0x12000000),
-                            blurRadius: 14,
-                            offset: Offset(0, 3),
-                          ),
+                    child: Column(
+                      children: [
+                        _LogsRow(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    LogsPage(controller: widget.controller),
+                              ),
+                            );
+                          },
+                        ),
+                        Divider(
+                          height: 1,
+                          indent: 72,
+                          endIndent: 18,
+                          color: lineColor,
+                        ),
+                        _CheckUpdateRow(
+                          checking: _checkingUpdate,
+                          onTap: _checkUpdate,
+                        ),
                       ],
-                    ),
-                    child: _CheckUpdateRow(
-                      checking: _checkingUpdate,
-                      onTap: _checkUpdate,
                     ),
                   ),
                 ],
@@ -322,10 +317,10 @@ class _ThemeRow extends StatelessWidget {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SizedBox(
-        height: 64,
+    return SizedBox(
+      height: 64,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
         child: Row(
           children: [
             const CircleAvatar(
