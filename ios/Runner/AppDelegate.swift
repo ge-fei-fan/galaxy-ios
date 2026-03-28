@@ -375,24 +375,54 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
       return
     }
 
-    guard let encodedIpaUrl = ipaUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-          let trollStoreUrl = URL(string: "trollstore://install?url=\(encodedIpaUrl)") else {
+    guard let encodedIpaUrl = ipaUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+      result("IPA 下载地址无效")
+      return
+    }
+
+    let probeUrls = [
+      URL(string: "trollstore://"),
+      URL(string: "apple-magnifier://")
+    ].compactMap { $0 }
+
+    let installUrls = [
+      URL(string: "trollstore://install?url=\(encodedIpaUrl)"),
+      URL(string: "apple-magnifier://install?url=\(encodedIpaUrl)")
+    ].compactMap { $0 }
+
+    guard !probeUrls.isEmpty, !installUrls.isEmpty else {
       result("IPA 下载地址无效")
       return
     }
 
     DispatchQueue.main.async {
-      guard UIApplication.shared.canOpenURL(trollStoreUrl) else {
+      let app = UIApplication.shared
+      let isTrollStoreDetected = probeUrls.contains { app.canOpenURL($0) }
+
+      guard isTrollStoreDetected else {
         result("未检测到 TrollStore，请先安装 TrollStore")
         return
       }
 
-      UIApplication.shared.open(trollStoreUrl, options: [:]) { success in
-        if success {
-          result("已交给 TrollStore 下载并安装")
-        } else {
-          result("唤起 TrollStore 失败")
-        }
+      self.openTrollStoreInstallUrl(installUrls, index: 0, result: result)
+    }
+  }
+
+  private func openTrollStoreInstallUrl(
+    _ urls: [URL],
+    index: Int,
+    result: @escaping FlutterResult
+  ) {
+    guard index < urls.count else {
+      result("检测到 TrollStore，但唤起安装失败")
+      return
+    }
+
+    UIApplication.shared.open(urls[index], options: [:]) { success in
+      if success {
+        result("已交给 TrollStore 下载并安装")
+      } else {
+        self.openTrollStoreInstallUrl(urls, index: index + 1, result: result)
       }
     }
   }

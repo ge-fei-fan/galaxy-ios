@@ -48,6 +48,7 @@
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>trollstore</string>
+		<string>apple-magnifier</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
