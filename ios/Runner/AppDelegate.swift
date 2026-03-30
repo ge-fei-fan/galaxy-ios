@@ -92,6 +92,8 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
         result(self.deviceStatusCollector.snapshot())
       case "installIpaViaTrollStore":
         self.installIpaViaTrollStore(call.arguments, result: result)
+      case "installLocalIpaViaTrollStore":
+        self.installLocalIpaViaTrollStore(call.arguments, result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -408,9 +410,66 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
     }
   }
 
+  private func installLocalIpaViaTrollStore(_ arguments: Any?, result: @escaping FlutterResult) {
+    guard let map = arguments as? [String: Any] else {
+      result("参数格式错误")
+      return
+    }
+
+    let filePath = (map["filePath"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !filePath.isEmpty else {
+      result("本地 IPA 路径为空")
+      return
+    }
+
+    let fileUrl = URL(fileURLWithPath: filePath)
+    guard FileManager.default.fileExists(atPath: fileUrl.path) else {
+      result("本地 IPA 文件不存在")
+      return
+    }
+
+    guard let encodedFileUrl = fileUrl.absoluteString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+      result("本地 IPA 路径无效")
+      return
+    }
+
+    let probeUrls = [
+      URL(string: "trollstore://"),
+      URL(string: "apple-magnifier://")
+    ].compactMap { $0 }
+
+    let installUrls = [
+      URL(string: "trollstore://install?url=\(encodedFileUrl)"),
+      URL(string: "apple-magnifier://install?url=\(encodedFileUrl)")
+    ].compactMap { $0 }
+
+    guard !probeUrls.isEmpty, !installUrls.isEmpty else {
+      result("本地 IPA 路径无效")
+      return
+    }
+
+    DispatchQueue.main.async {
+      let app = UIApplication.shared
+      let isTrollStoreDetected = probeUrls.contains { app.canOpenURL($0) }
+
+      guard isTrollStoreDetected else {
+        result("未检测到 TrollStore，请先安装 TrollStore")
+        return
+      }
+
+      self.openTrollStoreInstallUrl(
+        installUrls,
+        index: 0,
+        successMessage: "已跳转 TrollStore 安装本地 IPA",
+        result: result
+      )
+    }
+  }
+
   private func openTrollStoreInstallUrl(
     _ urls: [URL],
     index: Int,
+    successMessage: String = "已交给 TrollStore 下载并安装",
     result: @escaping FlutterResult
   ) {
     guard index < urls.count else {
@@ -420,9 +479,9 @@ struct GalaxyMqttActivityAttributes: ActivityAttributes {
 
     UIApplication.shared.open(urls[index], options: [:]) { success in
       if success {
-        result("已交给 TrollStore 下载并安装")
+        result(successMessage)
       } else {
-        self.openTrollStoreInstallUrl(urls, index: index + 1, result: result)
+        self.openTrollStoreInstallUrl(urls, index: index + 1, successMessage: successMessage, result: result)
       }
     }
   }

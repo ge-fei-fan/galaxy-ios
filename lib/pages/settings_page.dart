@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 import 'package:galaxy_ios/controllers/mqtt_controller.dart';
 import 'package:galaxy_ios/pages/logs_page.dart';
@@ -25,6 +28,35 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _checkingUpdate = false;
+  _UpdateDownloadState _downloadState = _UpdateDownloadState.idle;
+  String? _downloadedFilePath;
+  String? _downloadError;
+  int _receivedBytes = 0;
+  int? _totalBytes;
+  double _downloadSpeedBytesPerSec = 0;
+  DateTime? _downloadStartedAt;
+  http.Client? _downloadClient;
+  StreamSubscription<List<int>>? _downloadSubscription;
+  IOSink? _downloadSink;
+  File? _partialDownloadFile;
+  bool _downloadCancelled = false;
+  StateSetter? _updateDialogSetState;
+
+  @override
+  void dispose() {
+    unawaited(_cancelDownload(silent: true));
+    super.dispose();
+  }
+
+  void _refreshUpdateDialog() {
+    if (mounted) {
+      setState(() {});
+    }
+    final dialogSetState = _updateDialogSetState;
+    if (dialogSetState != null) {
+      dialogSetState(() {});
+    }
+  }
 
   Future<void> _checkUpdate() async {
     if (_checkingUpdate) return;
@@ -53,6 +85,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
       final tagName = (data['tag_name'] as String? ?? '').trim();
       final ipaUrl = _extractIpaUrl(data);
+      _downloadState = _UpdateDownloadState.idle;
+      _downloadedFilePath = null;
+      _downloadError = null;
+      _receivedBytes = 0;
+      _totalBytes = null;
+      _downloadSpeedBytesPerSec = 0;
       if (!mounted) return;
       await _showUpdateDialog(tagName: tagName, ipaUrl: ipaUrl);
     } catch (e) {
@@ -98,45 +136,283 @@ class _SettingsPageState extends State<SettingsPage> {
 
     await showDialog<void>(
       context: context,
+      barrierDismissible: _downloadState != _UpdateDownloadState.downloading,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('检查更新'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('最新版本：$displayTag'),
-              const SizedBox(height: 8),
-              Text(
-                ipaUrl == null
-                    ? '未找到可用的 browser_download_url'
-                    : '已找到 IPA 下载地址，可开始更新。',
+        return StatefulBuilder(
+          builder: (dialogContext, dialogSetState) {
+            _updateDialogSetState = dialogSetState;
+            return PopScope(
+              canPop: _downloadState != _UpdateDownloadState.downloading,
+              child: AlertDialog(
+                title: const Text('检查更新'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('最新版本：$displayTag'),
+                    const SizedBox(height: 8),
+                    Text(_buildUpdateStatusText(ipaUrl)),
+                    if (_downloadState == _UpdateDownloadState.downloading ||
+                        _downloadState == _UpdateDownloadState.completed ||
+                        _downloadState == _UpdateDownloadState.failed ||
+                        _downloadState == _UpdateDownloadState.cancelled) ...[
+                      const SizedBox(height: 12),
+                      LinearProgressIndicator(value: _progressValue),
+                      const SizedBox(height: 8),
+                      Text(_buildProgressDetailText()),
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: _downloadState == _UpdateDownloadState.downloading
+                        ? () => _cancelDownload()
+                        : () {
+                            _updateDialogSetState = null;
+                            Navigator.of(dialogContext).pop();
+                          },
+                    child: Text(
+                      _downloadState == _UpdateDownloadState.downloading ? '取消下载' : '关闭',
+                    ),
+                  ),
+                  if (_downloadState == _UpdateDownloadState.completed)
+                    FilledButton(
+                      onPressed: _downloadedFilePath == null
+                          ? null
+                          : () async {
+                              final message = await widget.controller
+                                  .installLocalIpaViaTrollStore(_downloadedFilePath!);
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(SnackBar(content: Text(message)));
+                            },
+                      child: const Text('安装'),
+                    )
+                  else
+                    FilledButton(
+                      onPressed: ipaUrl == null ||
+                              _downloadState == _UpdateDownloadState.downloading
+                          ? null
+                          : () => _startDownload(ipaUrl, tagName: tagName),
+                      child: Text(
+                        _downloadState == _UpdateDownloadState.failed ||
+                                _downloadState == _UpdateDownloadState.cancelled
+                            ? '重新下载'
+                            : '下载更新',
+                      ),
+                    ),
+                ],
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: ipaUrl == null
-                  ? null
-                  : () async {
-                      Navigator.of(dialogContext).pop();
-                      final message = await widget.controller
-                          .installIpaViaTrollStore(ipaUrl);
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text(message)));
-                    },
-              child: const Text('更新'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
+
+    _updateDialogSetState = null;
+  }
+
+  Future<void> _startDownload(String ipaUrl, {required String tagName}) async {
+    if (_downloadState == _UpdateDownloadState.downloading) return;
+
+    _downloadCancelled = false;
+    _downloadedFilePath = null;
+    _downloadError = null;
+    _receivedBytes = 0;
+    _totalBytes = null;
+    _downloadSpeedBytesPerSec = 0;
+    _downloadStartedAt = DateTime.now();
+    _downloadState = _UpdateDownloadState.downloading;
+    _refreshUpdateDialog();
+
+    final client = http.Client();
+    _downloadClient = client;
+
+    try {
+      final uri = Uri.parse(ipaUrl);
+      final request = http.Request('GET', uri);
+      final response = await client.send(request);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('下载失败（HTTP ${response.statusCode}）');
+      }
+
+      final total = response.contentLength;
+      _totalBytes = total != null && total > 0 ? total : null;
+
+      final dir = await _ensureUpdateDirectory();
+      final safeTag = _sanitizeFileName(tagName.isEmpty ? 'latest' : tagName);
+      final finalFile = File('${dir.path}${Platform.pathSeparator}galaxy_ios_$safeTag.ipa');
+      final partialFile = File('${finalFile.path}.part');
+      _partialDownloadFile = partialFile;
+
+      if (await partialFile.exists()) {
+        await partialFile.delete();
+      }
+      if (await finalFile.exists()) {
+        await finalFile.delete();
+      }
+
+      await partialFile.create(recursive: true);
+      final sink = partialFile.openWrite();
+      _downloadSink = sink;
+
+      final completer = Completer<void>();
+      _downloadSubscription = response.stream.listen(
+        (chunk) {
+          if (_downloadCancelled) return;
+          sink.add(chunk);
+          _receivedBytes += chunk.length;
+          final startedAt = _downloadStartedAt;
+          if (startedAt != null) {
+            final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
+            if (elapsedMs > 0) {
+              _downloadSpeedBytesPerSec = _receivedBytes / (elapsedMs / 1000);
+            }
+          }
+          _refreshUpdateDialog();
+        },
+        onDone: () async {
+          if (completer.isCompleted) return;
+          try {
+            await sink.flush();
+            await sink.close();
+            _downloadSink = null;
+
+            if (_downloadCancelled) {
+              if (await partialFile.exists()) {
+                await partialFile.delete();
+              }
+              if (!completer.isCompleted) completer.complete();
+              return;
+            }
+
+            await partialFile.rename(finalFile.path);
+            _downloadedFilePath = finalFile.path;
+            _downloadState = _UpdateDownloadState.completed;
+            _refreshUpdateDialog();
+            completer.complete();
+          } catch (e) {
+            if (!completer.isCompleted) {
+              completer.completeError(e);
+            }
+          }
+        },
+        onError: (error, _) async {
+          if (_downloadCancelled) {
+            if (!completer.isCompleted) completer.complete();
+            return;
+          }
+          if (_downloadSink != null) {
+            await _downloadSink?.close();
+            _downloadSink = null;
+          }
+          if (!completer.isCompleted) {
+            completer.completeError(error);
+          }
+        },
+        cancelOnError: true,
+      );
+
+      await completer.future;
+    } catch (e) {
+      if (_downloadCancelled) {
+        _downloadState = _UpdateDownloadState.cancelled;
+      } else {
+        _downloadState = _UpdateDownloadState.failed;
+        _downloadError = e.toString();
+      }
+      _refreshUpdateDialog();
+    } finally {
+      await _downloadSubscription?.cancel();
+      _downloadSubscription = null;
+      _downloadClient?.close();
+      _downloadClient = null;
+      if (_downloadCancelled && _downloadState != _UpdateDownloadState.completed) {
+        _downloadState = _UpdateDownloadState.cancelled;
+        _refreshUpdateDialog();
+      }
+    }
+  }
+
+  Future<void> _cancelDownload({bool silent = false}) async {
+    if (_downloadState != _UpdateDownloadState.downloading) return;
+    _downloadCancelled = true;
+    _downloadClient?.close();
+    await _downloadSubscription?.cancel();
+    _downloadSubscription = null;
+    await _downloadSink?.close();
+    _downloadSink = null;
+    final partialFile = _partialDownloadFile;
+    _partialDownloadFile = null;
+    if (partialFile != null && await partialFile.exists()) {
+      await partialFile.delete();
+    }
+    _downloadState = _UpdateDownloadState.cancelled;
+    if (!silent) {
+      _refreshUpdateDialog();
+    }
+  }
+
+  Future<Directory> _ensureUpdateDirectory() async {
+    final baseDir = await getTemporaryDirectory();
+    final dir = Directory(
+      '${baseDir.path}${Platform.pathSeparator}galaxy_ios_updates',
+    );
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return dir;
+  }
+
+  String _buildUpdateStatusText(String? ipaUrl) {
+    switch (_downloadState) {
+      case _UpdateDownloadState.idle:
+        return ipaUrl == null ? '未找到可用的 browser_download_url' : '已找到 IPA 下载地址，可先下载再安装。';
+      case _UpdateDownloadState.downloading:
+        return '正在下载 IPA，请稍候…';
+      case _UpdateDownloadState.completed:
+        return '下载完成，已可跳转 TrollStore 安装。';
+      case _UpdateDownloadState.failed:
+        return '下载失败：${_downloadError ?? '未知错误'}';
+      case _UpdateDownloadState.cancelled:
+        return '下载已取消。';
+    }
+  }
+
+  double? get _progressValue {
+    final total = _totalBytes;
+    if (total == null || total <= 0) return null;
+    return (_receivedBytes / total).clamp(0, 1).toDouble();
+  }
+
+  String _buildProgressDetailText() {
+    final downloaded = _formatBytes(_receivedBytes);
+    final total = _totalBytes == null ? '未知大小' : _formatBytes(_totalBytes!);
+    final speed = _downloadSpeedBytesPerSec <= 0
+        ? '--/s'
+        : '${_formatBytes(_downloadSpeedBytesPerSec.round())}/s';
+    final percent = _progressValue == null
+        ? '正在下载'
+        : '${(_progressValue! * 100).toStringAsFixed(1)}%';
+    return '$percent · $downloaded / $total · $speed';
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    const units = ['KB', 'MB', 'GB'];
+    double value = bytes / 1024;
+    var unitIndex = 0;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024;
+      unitIndex++;
+    }
+    return '${value.toStringAsFixed(value >= 100 ? 0 : value >= 10 ? 1 : 2)} ${units[unitIndex]}';
+  }
+
+  String _sanitizeFileName(String value) {
+    return value.replaceAll(RegExp(r'[^a-zA-Z0-9._-]+'), '_');
   }
 
   @override
@@ -202,10 +478,9 @@ class _SettingsPageState extends State<SettingsPage> {
                           isDarkMode: widget.isDarkMode,
                           onThemeModeChanged: widget.onThemeModeChanged,
                         ),
-                        Divider(
+                        Container(
                           height: 1,
-                          indent: 72,
-                          endIndent: 18,
+                          margin: const EdgeInsets.only(left: 72, right: 18),
                           color: lineColor,
                         ),
                         const _GeneralRow(),
@@ -251,10 +526,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             );
                           },
                         ),
-                        Divider(
+                        Container(
                           height: 1,
-                          indent: 72,
-                          endIndent: 18,
+                          margin: const EdgeInsets.only(left: 72, right: 18),
                           color: lineColor,
                         ),
                         _CheckUpdateRow(
@@ -273,6 +547,8 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 }
+
+enum _UpdateDownloadState { idle, downloading, completed, failed, cancelled }
 
 class _ThemeRow extends StatelessWidget {
   const _ThemeRow({required this.isDarkMode, required this.onThemeModeChanged});

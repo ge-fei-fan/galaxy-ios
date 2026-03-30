@@ -732,6 +732,22 @@ class MqttController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  Future<String> installLocalIpaViaTrollStore(String filePath) async {
+    try {
+      final result = await _channel.invokeMethod<String>(
+        'installLocalIpaViaTrollStore',
+        {'filePath': filePath},
+      );
+      final message = result ?? '已请求 TrollStore 安装本地 IPA';
+      _notificationService.log('Flutter: $message');
+      return message;
+    } catch (e) {
+      final message = '调用 TrollStore 安装本地 IPA 失败: $e';
+      _notificationService.log('Flutter: $message');
+      return message;
+    }
+  }
+
   String _formatTime(DateTime time) {
     final t = time.toLocal();
     final hh = t.hour.toString().padLeft(2, '0');
