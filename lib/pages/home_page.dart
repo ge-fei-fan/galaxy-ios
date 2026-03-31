@@ -130,7 +130,7 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 10),
                   GridView.count(
                     crossAxisCount: 2,
-                    childAspectRatio: 1.28,
+                    childAspectRatio: 1.82,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     shrinkWrap: true,
@@ -432,7 +432,7 @@ class _DeviceOverviewCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.titleMedium?.copyWith(
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w400,
                         color: textTheme.bodySmall?.color?.withValues(alpha: 0.62),
                       ),
@@ -493,7 +493,7 @@ class _InfoCell extends StatelessWidget {
         Text(
           label,
           style: textTheme.titleMedium?.copyWith(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w400,
             height: 1.06,
           ),
@@ -504,7 +504,7 @@ class _InfoCell extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: textTheme.titleMedium?.copyWith(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w400,
             color: textTheme.bodySmall?.color?.withValues(alpha: 0.62),
             height: 1.06,
@@ -539,7 +539,7 @@ class _MetricCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return _GlassCard(
       colorScheme: colorScheme,
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 10),
       radius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,20 +547,20 @@ class _MetricCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(9),
                 ),
-                child: Icon(icon, color: accent, size: 20),
+                child: Icon(icon, color: accent, size: 18),
               ),
-              const SizedBox(width: 7),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   title,
                   style: textTheme.titleLarge?.copyWith(
-                    fontSize: 17,
+                    fontSize: 14,
                     fontWeight: FontWeight.w400,
                     letterSpacing: -0.2,
                   ),
@@ -573,12 +573,12 @@ class _MetricCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(5),
             child: LinearProgressIndicator(
               value: progress,
-              minHeight: 7,
+              minHeight: 6,
               backgroundColor: Colors.black.withValues(alpha: 0.08),
               valueColor: AlwaysStoppedAnimation<Color>(accent),
             ),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(
@@ -587,19 +587,19 @@ class _MetricCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: textTheme.bodyLarge?.copyWith(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w400,
                     color: textTheme.bodySmall?.color?.withValues(alpha: 0.92),
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               Text(
                 valueLabel,
                 style: textTheme.titleLarge?.copyWith(
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.w400,
-                  letterSpacing: -0.5,
+                  letterSpacing: -0.3,
                   height: 1,
                 ),
               ),
@@ -664,14 +664,14 @@ class _NetworkCard extends StatelessWidget {
                     Text(
                       '网络',
                       style: textTheme.titleLarge?.copyWith(
-                        fontSize: 19,
+                        fontSize: 14,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
                     Text(
                       '●  $connectionLabel',
                       style: textTheme.bodyLarge?.copyWith(
-                        fontSize: 16,
+                        fontSize: 14,
                         color: palette.network,
                         fontWeight: FontWeight.w400,
                       ),
@@ -685,7 +685,7 @@ class _NetworkCard extends StatelessWidget {
                   Text(
                     '↓ $downSpeedLabel',
                     style: textTheme.titleSmall?.copyWith(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w400,
                       color: palette.network,
                     ),
@@ -694,7 +694,7 @@ class _NetworkCard extends StatelessWidget {
                   Text(
                     '↑ $upSpeedLabel',
                     style: textTheme.titleSmall?.copyWith(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w400,
                       color: palette.cpu,
                     ),
@@ -711,7 +711,7 @@ class _NetworkCard extends StatelessWidget {
               Text(
                 '总使用量',
                 style: textTheme.bodyLarge?.copyWith(
-                  fontSize: 15,
+                  fontSize: 14,
                   color: textTheme.bodySmall?.color?.withValues(alpha: 0.84),
                 ),
               ),
@@ -721,7 +721,7 @@ class _NetworkCard extends StatelessWidget {
                   Text(
                     '↓ $downTotalLabel',
                     style: textTheme.titleMedium?.copyWith(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w400,
                       color: palette.network,
                     ),
@@ -730,7 +730,7 @@ class _NetworkCard extends StatelessWidget {
                   Text(
                     '↑ $upTotalLabel',
                     style: textTheme.titleMedium?.copyWith(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w400,
                       color: palette.cpu,
                     ),
