@@ -14,16 +14,43 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late final DeviceStatusService _service;
+  StreamSubscription<DeviceStatusSnapshot>? _historySubscription;
+  final List<double> _downloadHistory = <double>[];
+  final List<double> _uploadHistory = <double>[];
+
+  static const int _maxHistoryPoints = 24;
 
   @override
   void initState() {
     super.initState();
     _service = DeviceStatusService();
+    _historySubscription = _service.stream.listen(_recordNetworkHistory);
     _service.start();
+  }
+
+  void _recordNetworkHistory(DeviceStatusSnapshot snapshot) {
+    final down = (snapshot.downloadSpeedBytesPerSec ?? 0).clamp(0, double.infinity)
+        .toDouble();
+    final up = (snapshot.uploadSpeedBytesPerSec ?? 0).clamp(0, double.infinity)
+        .toDouble();
+
+    if (!mounted) return;
+    setState(() {
+      _pushHistoryPoint(_downloadHistory, down);
+      _pushHistoryPoint(_uploadHistory, up);
+    });
+  }
+
+  void _pushHistoryPoint(List<double> history, double value) {
+    history.add(value);
+    if (history.length > _maxHistoryPoints) {
+      history.removeAt(0);
+    }
   }
 
   @override
   void dispose() {
+    unawaited(_historySubscription?.cancel());
     unawaited(_service.dispose());
     super.dispose();
   }
@@ -64,7 +91,7 @@ class _HomePageState extends State<HomePage> {
                     'Device Status+',
                     style: textTheme.displaySmall?.copyWith(
                       fontSize: 32,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w400,
                       height: 1.02,
                       letterSpacing: -0.6,
                     ),
@@ -77,7 +104,7 @@ class _HomePageState extends State<HomePage> {
                           '实时设备监控和传感器控制',
                           style: textTheme.titleMedium?.copyWith(
                             fontSize: 17,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w400,
                             height: 1.15,
                             color: textTheme.bodyMedium?.color?.withValues(alpha: 0.86),
                           ),
@@ -165,6 +192,8 @@ class _HomePageState extends State<HomePage> {
                     upSpeedLabel: _formatSpeed(upSpeed),
                     downTotalLabel: _formatBytes(data?.downloadTotalBytes),
                     upTotalLabel: _formatBytes(data?.uploadTotalBytes),
+                    downloadHistory: _downloadHistory,
+                    uploadHistory: _uploadHistory,
                   ),
                 ],
               );
@@ -197,7 +226,7 @@ class _StatusPill extends StatelessWidget {
         label,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: color,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w400,
             ),
       ),
     );
@@ -393,7 +422,7 @@ class _DeviceOverviewCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.headlineMedium?.copyWith(
                         fontSize: 25,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w400,
                         height: 1.02,
                       ),
                     ),
@@ -404,7 +433,7 @@ class _DeviceOverviewCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.titleMedium?.copyWith(
                         fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w400,
                         color: textTheme.bodySmall?.color?.withValues(alpha: 0.62),
                       ),
                     ),
@@ -465,7 +494,7 @@ class _InfoCell extends StatelessWidget {
           label,
           style: textTheme.titleMedium?.copyWith(
             fontSize: 16,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w400,
             height: 1.06,
           ),
         ),
@@ -476,7 +505,7 @@ class _InfoCell extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: textTheme.titleMedium?.copyWith(
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w400,
             color: textTheme.bodySmall?.color?.withValues(alpha: 0.62),
             height: 1.06,
           ),
@@ -531,8 +560,8 @@ class _MetricCard extends StatelessWidget {
                 child: Text(
                   title,
                   style: textTheme.titleLarge?.copyWith(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w400,
                     letterSpacing: -0.2,
                   ),
                 ),
@@ -559,7 +588,7 @@ class _MetricCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: textTheme.bodyLarge?.copyWith(
                     fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w400,
                     color: textTheme.bodySmall?.color?.withValues(alpha: 0.92),
                   ),
                 ),
@@ -568,9 +597,9 @@ class _MetricCard extends StatelessWidget {
               Text(
                 valueLabel,
                 style: textTheme.titleLarge?.copyWith(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.7,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -0.5,
                   height: 1,
                 ),
               ),
@@ -591,6 +620,8 @@ class _NetworkCard extends StatelessWidget {
     required this.upSpeedLabel,
     required this.downTotalLabel,
     required this.upTotalLabel,
+    required this.downloadHistory,
+    required this.uploadHistory,
   });
 
   final ColorScheme colorScheme;
@@ -600,6 +631,8 @@ class _NetworkCard extends StatelessWidget {
   final String upSpeedLabel;
   final String downTotalLabel;
   final String upTotalLabel;
+  final List<double> downloadHistory;
+  final List<double> uploadHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -632,7 +665,7 @@ class _NetworkCard extends StatelessWidget {
                       '网络',
                       style: textTheme.titleLarge?.copyWith(
                         fontSize: 19,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                     Text(
@@ -640,7 +673,7 @@ class _NetworkCard extends StatelessWidget {
                       style: textTheme.bodyLarge?.copyWith(
                         fontSize: 16,
                         color: palette.network,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
@@ -653,7 +686,7 @@ class _NetworkCard extends StatelessWidget {
                     '↓ $downSpeedLabel',
                     style: textTheme.titleSmall?.copyWith(
                       fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w400,
                       color: palette.network,
                     ),
                   ),
@@ -662,7 +695,7 @@ class _NetworkCard extends StatelessWidget {
                     '↑ $upSpeedLabel',
                     style: textTheme.titleSmall?.copyWith(
                       fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w400,
                       color: palette.cpu,
                     ),
                   ),
@@ -689,7 +722,7 @@ class _NetworkCard extends StatelessWidget {
                     '↓ $downTotalLabel',
                     style: textTheme.titleMedium?.copyWith(
                       fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w400,
                       color: palette.network,
                     ),
                   ),
@@ -698,7 +731,7 @@ class _NetworkCard extends StatelessWidget {
                     '↑ $upTotalLabel',
                     style: textTheme.titleMedium?.copyWith(
                       fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w400,
                       color: palette.cpu,
                     ),
                   ),
@@ -720,21 +753,14 @@ class _NetworkCard extends StatelessWidget {
                 CustomPaint(
                   painter: _GridLinePainter(),
                 ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    width: 3,
-                    margin: const EdgeInsets.only(right: 10, bottom: 8),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          colorScheme.primary.withValues(alpha: 0.2),
-                          colorScheme.primary.withValues(alpha: 0.9),
-                        ],
-                      ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+                  child: CustomPaint(
+                    painter: _NetworkLineChartPainter(
+                      downloadHistory: downloadHistory,
+                      uploadHistory: uploadHistory,
+                      downloadColor: palette.network,
+                      uploadColor: palette.cpu,
                     ),
                   ),
                 ),
@@ -815,4 +841,125 @@ class _GridLinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _NetworkLineChartPainter extends CustomPainter {
+  const _NetworkLineChartPainter({
+    required this.downloadHistory,
+    required this.uploadHistory,
+    required this.downloadColor,
+    required this.uploadColor,
+  });
+
+  final List<double> downloadHistory;
+  final List<double> uploadHistory;
+  final Color downloadColor;
+  final Color uploadColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    _drawSeriesFill(canvas, size, downloadHistory, downloadColor.withValues(alpha: 0.14));
+    _drawSeries(canvas, size, downloadHistory, downloadColor, 2.4);
+    _drawSeries(canvas, size, uploadHistory, uploadColor, 2.0);
+  }
+
+  void _drawSeries(
+    Canvas canvas,
+    Size size,
+    List<double> values,
+    Color color,
+    double strokeWidth,
+  ) {
+    final points = _normalizedPoints(size, values);
+    if (points.length < 2) return;
+
+    final path = _buildSmoothPath(points);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawPath(path, paint);
+
+    final lastPoint = points.last;
+    canvas.drawCircle(
+      lastPoint,
+      3.5,
+      Paint()..color = color,
+    );
+    canvas.drawCircle(
+      lastPoint,
+      6.5,
+      Paint()..color = color.withValues(alpha: 0.18),
+    );
+  }
+
+  void _drawSeriesFill(
+    Canvas canvas,
+    Size size,
+    List<double> values,
+    Color color,
+  ) {
+    final points = _normalizedPoints(size, values);
+    if (points.length < 2) return;
+
+    final path = _buildSmoothPath(points)
+      ..lineTo(points.last.dx, size.height)
+      ..lineTo(points.first.dx, size.height)
+      ..close();
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
+  }
+
+  List<Offset> _normalizedPoints(Size size, List<double> values) {
+    final sanitized = values.map((value) => value.isFinite ? value : 0.0).toList();
+    if (sanitized.isEmpty) {
+      return <Offset>[];
+    }
+    if (sanitized.length == 1) {
+      final y = size.height * 0.65;
+      return <Offset>[Offset(0, y), Offset(size.width, y)];
+    }
+
+    var maxValue = 0.0;
+    for (final value in [...sanitized, ...downloadHistory, ...uploadHistory]) {
+      if (value.isFinite && value > maxValue) {
+        maxValue = value;
+      }
+    }
+    if (maxValue <= 0) {
+      maxValue = 1;
+    }
+
+    final stepX = size.width / (sanitized.length - 1);
+    return List<Offset>.generate(sanitized.length, (index) {
+      final normalized = (sanitized[index] / maxValue).clamp(0.0, 1.0);
+      final x = stepX * index;
+      final y = size.height - (normalized * size.height * 0.84) - 4;
+      return Offset(x, y.clamp(4.0, size.height - 2));
+    });
+  }
+
+  Path _buildSmoothPath(List<Offset> points) {
+    final path = Path()..moveTo(points.first.dx, points.first.dy);
+    for (var i = 0; i < points.length - 1; i++) {
+      final current = points[i];
+      final next = points[i + 1];
+      final controlX = (current.dx + next.dx) / 2;
+      path.cubicTo(controlX, current.dy, controlX, next.dy, next.dx, next.dy);
+    }
+    return path;
+  }
+
+  @override
+  bool shouldRepaint(covariant _NetworkLineChartPainter oldDelegate) {
+    return true;
+  }
 }
