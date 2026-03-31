@@ -537,6 +537,12 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final metricTextStyle = textTheme.titleLarge?.copyWith(
+      fontSize: 18,
+      fontWeight: FontWeight.w400,
+      letterSpacing: -0.4,
+      height: 1,
+    );
     return _GlassCard(
       colorScheme: colorScheme,
       padding: const EdgeInsets.fromLTRB(12, 11, 12, 10),
@@ -586,22 +592,18 @@ class _MetricCard extends StatelessWidget {
                   subLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodyLarge?.copyWith(
-                    fontSize: 14,
+                  softWrap: false,
+                  style: metricTextStyle?.copyWith(
                     fontWeight: FontWeight.w400,
                     color: textTheme.bodySmall?.color?.withValues(alpha: 0.92),
+                    letterSpacing: -0.7,
                   ),
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 8),
               Text(
                 valueLabel,
-                style: textTheme.titleLarge?.copyWith(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w400,
-                  letterSpacing: -0.3,
-                  height: 1,
-                ),
+                style: metricTextStyle,
               ),
             ],
           ),
@@ -637,6 +639,18 @@ class _NetworkCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final networkMetaStyle = textTheme.bodyMedium?.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      letterSpacing: -0.2,
+      height: 1.05,
+    );
+    final networkStatStyle = textTheme.titleSmall?.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      letterSpacing: -0.25,
+      height: 1.05,
+    );
     return _GlassCard(
       colorScheme: colorScheme,
       child: Column(
@@ -670,36 +684,45 @@ class _NetworkCard extends StatelessWidget {
                     ),
                     Text(
                       '●  $connectionLabel',
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontSize: 14,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: networkMetaStyle?.copyWith(
                         color: palette.network,
-                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '↓ $downSpeedLabel',
-                    style: textTheme.titleSmall?.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: palette.network,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        '↓ $downSpeedLabel',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: networkStatStyle?.copyWith(
+                          color: palette.network,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '↑ $upSpeedLabel',
-                    style: textTheme.titleSmall?.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: palette.cpu,
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        '↑ $upSpeedLabel',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: networkStatStyle?.copyWith(
+                          color: palette.cpu,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -710,8 +733,7 @@ class _NetworkCard extends StatelessWidget {
             children: [
               Text(
                 '总使用量',
-                style: textTheme.bodyLarge?.copyWith(
-                  fontSize: 14,
+                style: networkMetaStyle?.copyWith(
                   color: textTheme.bodySmall?.color?.withValues(alpha: 0.84),
                 ),
               ),
@@ -720,18 +742,14 @@ class _NetworkCard extends StatelessWidget {
                 children: [
                   Text(
                     '↓ $downTotalLabel',
-                    style: textTheme.titleMedium?.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
+                    style: networkStatStyle?.copyWith(
                       color: palette.network,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Text(
                     '↑ $upTotalLabel',
-                    style: textTheme.titleMedium?.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
+                    style: networkStatStyle?.copyWith(
                       color: palette.cpu,
                     ),
                   ),
