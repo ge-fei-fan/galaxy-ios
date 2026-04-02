@@ -29,89 +29,186 @@ class _SendPageState extends State<SendPage> {
       _payloadController.text,
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(widget.controller.status)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(widget.controller.status)));
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inputFill = isDark ? const Color(0xFF20232B) : Colors.white;
+    final pageBg = isDark ? const Color(0xFF121318) : const Color(0xFFF2F1F6);
+    final cardBg = isDark ? const Color(0xFF1B1D23) : Colors.white;
+    final inputFill = isDark
+        ? const Color(0xFF20232B)
+        : const Color(0xFFF8F9FC);
     final inputBorderColor = isDark
         ? const Color(0xFF3A3D46)
-        : const Color(0xFFD2D2D7);
+        : const Color(0xFFDADCE6);
 
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '发送内容',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _topicController,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                labelText: 'Topic',
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: inputBorderColor),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: inputBorderColor),
-                ),
-                filled: true,
-                fillColor: inputFill,
+    final inputBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: inputBorderColor),
+    );
+
+    return Container(
+      color: pageBg,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '发送消息',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: TextField(
-                controller: _payloadController,
-                maxLines: null,
-                expands: true,
-                textInputAction: TextInputAction.newline,
-                decoration: InputDecoration(
-                  labelText: 'Payload',
-                  alignLabelWithHint: true,
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide(color: inputBorderColor),
+              const SizedBox(height: 4),
+              Text(
+                '填写 Topic 与 Payload 并推送到当前 MQTT 连接',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              _ConnectionStatusPill(controller: widget.controller),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.black.withValues(alpha: 0.04),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.12 : 0.045,
+                        ),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: inputBorderColor),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _topicController,
+                        textInputAction: TextInputAction.next,
+                        decoration: InputDecoration(
+                          labelText: 'Topic',
+                          hintText: '例如：home/device/status',
+                          border: inputBorder,
+                          enabledBorder: inputBorder,
+                          focusedBorder: inputBorder.copyWith(
+                            borderSide: const BorderSide(
+                              color: Color(0xFF4A6CF7),
+                              width: 1.4,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: inputFill,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _payloadController,
+                          maxLines: null,
+                          expands: true,
+                          textInputAction: TextInputAction.newline,
+                          decoration: InputDecoration(
+                            labelText: 'Payload',
+                            hintText: '输入要发送的消息内容',
+                            alignLabelWithHint: true,
+                            border: inputBorder,
+                            enabledBorder: inputBorder,
+                            focusedBorder: inputBorder.copyWith(
+                              borderSide: const BorderSide(
+                                color: Color(0xFF4A6CF7),
+                                width: 1.4,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: inputFill,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  filled: true,
-                  fillColor: inputFill,
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: widget.controller.connected ? _send : null,
-                    icon: const Icon(Icons.send),
-                    label: const Text('发送'),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: widget.controller.connected ? _send : null,
+                  icon: const Icon(Icons.send_rounded),
+                  label: const Text('发送消息'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF4A6CF7),
+                    disabledBackgroundColor: const Color(0xFF7E859A),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.controller.connected
-                  ? '已连接：${widget.controller.activeProfile?.host}:${widget.controller.activeProfile?.port}'
-                  : '未连接，请到“配置列表”页选择配置并连接',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _ConnectionStatusPill extends StatelessWidget {
+  const _ConnectionStatusPill({required this.controller});
+
+  final MqttController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final connected = controller.connected;
+    final endpoint =
+        '${controller.activeProfile?.host}:${controller.activeProfile?.port}';
+    final bg = connected ? const Color(0x220AB36E) : const Color(0x224A6CF7);
+    final textColor = connected
+        ? const Color(0xFF0A8A57)
+        : const Color(0xFF4A6CF7);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            connected ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+            size: 16,
+            color: textColor,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              connected ? '已连接：$endpoint' : '未连接，请先到“配置列表”页建立连接',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: textColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

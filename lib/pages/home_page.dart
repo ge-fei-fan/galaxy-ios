@@ -538,7 +538,7 @@ class _MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final metricTextStyle = textTheme.titleLarge?.copyWith(
-      fontSize: 18,
+      fontSize: 14,
       fontWeight: FontWeight.w400,
       letterSpacing: -0.4,
       height: 1,

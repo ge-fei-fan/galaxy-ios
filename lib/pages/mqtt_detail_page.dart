@@ -45,6 +45,16 @@ class _MqttDetailPageState extends State<MqttDetailPage>
     final pageBackground = isDark
         ? const Color(0xFF121318)
         : const Color(0xFFF2F1F6);
+    final cardBg = isDark ? const Color(0xFF1B1D23) : Colors.white;
+    final mutedColor = isDark
+        ? const Color(0xFFB2B8C8)
+        : const Color(0xFF697089);
+    final titleColor = isDark
+        ? const Color(0xFFE3E7F5)
+        : const Color(0xFF1F2558);
+    final connected = widget.controller.connected;
+    final segmentWidth = MediaQuery.of(context).size.width * 0.78;
+
     return Scaffold(
       backgroundColor: pageBackground,
       appBar: AppBar(
@@ -57,37 +67,100 @@ class _MqttDetailPageState extends State<MqttDetailPage>
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             color: pageBackground,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '当前配置：${widget.profile.name}',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${widget.profile.host}:${widget.profile.port}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '当前主题：$topicSummary',
-                  style: Theme.of(context).textTheme.bodySmall,
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.black.withValues(alpha: 0.04),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.12 : 0.045,
+                        ),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.profile.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(
+                                    color: titleColor,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _MqttStatusPill(connected: connected),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${widget.profile.host}:${widget.profile.port}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: mutedColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '当前主题：$topicSummary',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: mutedColor),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Center(
-                  child: SegmentedCapsule(
-                    labels: const ['发送', '接收'],
-                    selectedIndex: _tabController.index,
-                    width: MediaQuery.of(context).size.width * 0.8,
-                    height: 36,
-                    cornerRadius: 10,
-                    selectedColor: const Color(0xFF4CB3FF),
-                    onChanged: (index) {
-                      setState(() => _tabController.index = index);
-                    },
+                  child: Container(
+                    width: segmentWidth,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : Colors.black.withValues(alpha: 0.04),
+                      ),
+                    ),
+                    child: SegmentedCapsule(
+                      labels: const ['发送', '接收'],
+                      selectedIndex: _tabController.index,
+                      width: segmentWidth - 8,
+                      height: 38,
+                      cornerRadius: 16,
+                      selectedColor: const Color(0xFF4CB3FF),
+                      onChanged: (index) {
+                        setState(() => _tabController.index = index);
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -101,6 +174,48 @@ class _MqttDetailPageState extends State<MqttDetailPage>
                 SendPage(controller: widget.controller),
                 ReceivePage(controller: widget.controller),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MqttStatusPill extends StatelessWidget {
+  const _MqttStatusPill({required this.connected});
+
+  final bool connected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: connected ? const Color(0x220AB36E) : const Color(0x224A6CF7),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: connected
+                  ? const Color(0xFF0AB36E)
+                  : const Color(0xFF4A6CF7),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            connected ? '已连接' : '未连接',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: connected
+                  ? const Color(0xFF0A8A57)
+                  : const Color(0xFF4A6CF7),
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
