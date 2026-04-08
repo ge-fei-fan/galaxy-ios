@@ -14,11 +14,45 @@ class SendPage extends StatefulWidget {
 class _SendPageState extends State<SendPage> {
   final TextEditingController _topicController = TextEditingController();
   final TextEditingController _payloadController = TextEditingController();
+  final FocusNode _topicFocusNode = FocusNode();
+  final FocusNode _payloadFocusNode = FocusNode();
+  final GlobalKey _topicFieldKey = GlobalKey();
+  final GlobalKey _payloadFieldKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _topicFocusNode.addListener(() {
+      if (_topicFocusNode.hasFocus) {
+        _ensureFieldVisible(_topicFieldKey);
+      }
+    });
+    _payloadFocusNode.addListener(() {
+      if (_payloadFocusNode.hasFocus) {
+        _ensureFieldVisible(_payloadFieldKey);
+      }
+    });
+  }
+
+  void _ensureFieldVisible(GlobalKey key) {
+    final fieldContext = key.currentContext;
+    if (fieldContext == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Scrollable.ensureVisible(
+        fieldContext,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        alignment: 0.2,
+      );
+    });
+  }
 
   @override
   void dispose() {
     _topicController.dispose();
     _payloadController.dispose();
+    _topicFocusNode.dispose();
+    _payloadFocusNode.dispose();
     super.dispose();
   }
 
@@ -51,32 +85,35 @@ class _SendPageState extends State<SendPage> {
       borderSide: BorderSide(color: inputBorderColor),
     );
 
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Container(
       color: pageBg,
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusScope.of(context).unfocus(),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '发送消息',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '填写 Topic 与 Payload 并推送到当前 MQTT 连接',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 12),
-              _ConnectionStatusPill(controller: widget.controller),
-              const SizedBox(height: 12),
-              Expanded(
-                child: Container(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '发送消息',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '填写 Topic 与 Payload 并推送到当前 MQTT 连接',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                _ConnectionStatusPill(controller: widget.controller),
+                const SizedBox(height: 12),
+                Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -99,31 +136,40 @@ class _SendPageState extends State<SendPage> {
                   ),
                   child: Column(
                     children: [
-                      TextField(
-                        controller: _topicController,
-                        textInputAction: TextInputAction.next,
-                        decoration: InputDecoration(
-                          labelText: 'Topic',
-                          hintText: '例如：home/device/status',
-                          border: inputBorder,
-                          enabledBorder: inputBorder,
-                          focusedBorder: inputBorder.copyWith(
-                            borderSide: const BorderSide(
-                              color: Color(0xFF4A6CF7),
-                              width: 1.4,
+                      Container(
+                        key: _topicFieldKey,
+                        child: TextField(
+                          controller: _topicController,
+                          focusNode: _topicFocusNode,
+                          textInputAction: TextInputAction.next,
+                          onTap: () => _ensureFieldVisible(_topicFieldKey),
+                          decoration: InputDecoration(
+                            labelText: 'Topic',
+                            hintText: '例如：home/device/status',
+                            border: inputBorder,
+                            enabledBorder: inputBorder,
+                            focusedBorder: inputBorder.copyWith(
+                              borderSide: const BorderSide(
+                                color: Color(0xFF4A6CF7),
+                                width: 1.4,
+                              ),
                             ),
+                            filled: true,
+                            fillColor: inputFill,
                           ),
-                          filled: true,
-                          fillColor: inputFill,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Expanded(
+                      Container(
+                        key: _payloadFieldKey,
+                        constraints: const BoxConstraints(minHeight: 220),
                         child: TextField(
                           controller: _payloadController,
+                          focusNode: _payloadFocusNode,
+                          minLines: 10,
                           maxLines: null,
-                          expands: true,
                           textInputAction: TextInputAction.newline,
+                          onTap: () => _ensureFieldVisible(_payloadFieldKey),
                           decoration: InputDecoration(
                             labelText: 'Payload',
                             hintText: '输入要发送的消息内容',
@@ -144,22 +190,22 @@ class _SendPageState extends State<SendPage> {
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: widget.controller.connected ? _send : null,
-                  icon: const Icon(Icons.send_rounded),
-                  label: const Text('发送消息'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF4A6CF7),
-                    disabledBackgroundColor: const Color(0xFF7E859A),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: widget.controller.connected ? _send : null,
+                    icon: const Icon(Icons.send_rounded),
+                    label: const Text('发送消息'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF4A6CF7),
+                      disabledBackgroundColor: const Color(0xFF7E859A),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
